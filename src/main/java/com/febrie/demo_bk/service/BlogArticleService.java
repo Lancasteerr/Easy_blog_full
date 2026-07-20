@@ -1,14 +1,12 @@
 package com.febrie.demo_bk.service;
 
-import com.febrie.demo_bk.annotation.OperationLoger;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.febrie.demo_bk.dao.ArticleViewStatDAO;
 import com.febrie.demo_bk.dao.BlogArticleDAO;
 import com.febrie.demo_bk.dto.ArticleDTO;
 import com.febrie.demo_bk.pojo.BlogArticle;
 import com.febrie.demo_bk.result.PageResult;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.TimeUnit;
@@ -27,7 +25,11 @@ public class BlogArticleService {
      */
     //@OperationLoger(module = "文章",type = "增加或修改")
     public void addOrUpdate(ArticleDTO articleDTO) {
-        blogArticleDAO.save(BlogArticle.toPojo(articleDTO));
+        if(articleDTO.getId() == null) {
+            blogArticleDAO.insert(BlogArticle.toPojo(articleDTO));
+        } else {
+            blogArticleDAO.updateById(BlogArticle.toPojo(articleDTO));
+        }
         redisService.delete("blog:article:detail:"+articleDTO.getId());
         increasePageVersion();
     }
@@ -41,7 +43,7 @@ public class BlogArticleService {
 
         ArticleDTO cache = redisService.getObject(key,ArticleDTO.class);
         if(cache==null){
-            ArticleDTO dto = BlogArticle.toDTO(blogArticleDAO.findById(id));
+            ArticleDTO dto = BlogArticle.toDTO(blogArticleDAO.selectById(id));
             if(dto==null) return null;
             redisService.setObject(key,dto,30, TimeUnit.DAYS);
             return dto;
@@ -73,13 +75,27 @@ public class BlogArticleService {
 
     public PageResult getArticleList(int page, int size) {
         Long version = getArticlePageVersion();
-        String cacheKey = String.format("blog:article:page:%d:%d:%d",version,page,size);
-        PageResult pageResult = redisService.getObject(cacheKey,PageResult.class);
-        if(pageResult==null){
-            Pageable pageable = PageRequest.of(page,size);
-            pageResult = PageResult.from(blogArticleDAO.findAll(pageable));
+        String cacheKey = String.format(
+                "blog:article:page:%d:%d:%d",
+                version, page, size);
+        PageResult pageResult = redisService.getObject(cacheKey, PageResult.class);
+        if(pageResult == null){
+
+            Page<BlogArticle> articlePage =
+                    new Page<>(
+                            page,
+                            size
+                    );
+
+            Page<BlogArticle> result = blogArticleDAO.selectPage(
+                    articlePage,
+                    null
+            );
+
+
+            pageResult = PageResult.from(result);
             //加入新缓存
-            redisService.setObject(cacheKey,pageResult,1,TimeUnit.DAYS);
+            redisService.setObject(cacheKey,pageResult,7,TimeUnit.DAYS);
 
             return pageResult;
         }

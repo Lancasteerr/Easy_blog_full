@@ -1,10 +1,12 @@
 package com.febrie.demo_bk.dao;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.febrie.demo_bk.pojo.User;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.apache.ibatis.annotations.Mapper;
 
-public interface UserDAO extends JpaRepository<User,Integer> {
-    User findByUserName (String userName);
+@Mapper
+public interface UserDAO extends BaseMapper<User> {
+    User selectByUserName(String userName);
 
     User getByUserNameAndPassword(String userName,String password);
 

@@ -11,12 +11,12 @@ public class UserService {
     private UserDAO userDAO;
 
     public boolean isExist (String userName) {
-        User user = userDAO.findByUserName(userName);
+        User user = userDAO.selectByUserName(userName);
         return null != user;
     }
 
     public User getByName (String userName) {
-        return userDAO.findByUserName(userName);
+        return userDAO.selectByUserName(userName);
     }
 
     public User get (String userName,String password) {
@@ -24,6 +24,6 @@ public class UserService {
     }
 
     public void add (User user) {
-        userDAO.save(user);
+        userDAO.insert(user);
     }
 }

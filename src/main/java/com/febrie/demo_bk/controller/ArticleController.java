@@ -20,7 +20,7 @@ public class ArticleController {
     @GetMapping("api/public/get_article_list")
     @OperationLoger(module = "文章列表",type = "获取")
     public PageResult getArticles(@RequestParam int page, @RequestParam int size){
-        return blogArticleService.getArticleList(page - 1,size);
+        return blogArticleService.getArticleList(page,size);
     }
 
     @CrossOrigin

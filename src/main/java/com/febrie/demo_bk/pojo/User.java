@@ -1,72 +1,49 @@
 package com.febrie.demo_bk.pojo;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
 
-@Entity
-@Table(name = "user")
-//json化时忽略"handler","hibernateLazyInitializer"无用属性，提高性能
-@JsonIgnoreProperties({"handler","hibernateLazyInitializer"})
-
+@TableName("user")
+@JsonIgnoreProperties({"handler", "hibernateLazyInitializer"})
+@Getter
+@Setter
+@NoArgsConstructor
 public class User implements UserDetails {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    int id;
-    @Column(name = "user_name",nullable = true,unique = true)
-    String userName;
-    @Column(name = "password",nullable = true)
-    String password;
-    @Column(name = "role",nullable = true)
-    String role;
+    @TableId(type = IdType.AUTO)
+    private int id;
 
-    public User(){ this.role = "ROLE_ADMIN"; }
+    @TableField("user_name")
+    private String userName;
 
-    public User(int id,String userName,String password,String role){
+    private String password;
+
+    private String role = "ROLE_ADMIN";
+
+    public User(int id, String userName, String password, String role) {
         this.id = id;
         this.userName = userName;
         this.password = password;
-        this.role = role != null ? role : "ROLE_ADMIN";//默认用户组为ADMIN
-    }
-
-    //JPA必须的getter和setter 可用Lombok
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
+        this.role = role != null ? role : "ROLE_ADMIN";
     }
 
     public String getUserName() {
         return userName;
     }
 
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public String getRole() {return role;}
-
-    public void setRole(String role) {this.role = role;}
-
-    //Spring Security必须的方法
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(() -> this.role);//以列表返回用户拥有的角色
+        return Collections.singletonList(() -> this.role);
     }
 
     @Override

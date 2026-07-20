@@ -16,6 +16,6 @@ public class OperationLogService {
 
     @Async
     public void save(OperationLog log){
-        operationLogDAO.save(log);
+        operationLogDAO.insert(log);
     }
 }

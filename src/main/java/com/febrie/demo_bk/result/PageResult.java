@@ -1,10 +1,14 @@
 package com.febrie.demo_bk.result;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.febrie.demo_bk.pojo.BlogArticle;
-import org.springframework.data.domain.Page;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
+@Getter
+@Setter
 public class PageResult {
     private List<BlogArticle> content;
 
@@ -24,31 +28,8 @@ public class PageResult {
     }
 
     public static PageResult from(Page<BlogArticle> BlogArticleS){
-        return new PageResult(BlogArticleS.getContent(),BlogArticleS.getTotalElements(), BlogArticleS.getNumber());
-    }
-
-    //getter & setter
-    public List<BlogArticle> getContent() {
-        return content;
-    }
-
-    public void setContent(List<BlogArticle> content) {
-        this.content = content;
-    }
-
-    public long getTotalElements() {
-        return totalElements;
-    }
-
-    public void setTotalElements(long totalElements) {
-        this.totalElements = totalElements;
-    }
-
-    public int getNumber() {
-        return number;
-    }
-
-    public void setNumber(int number) {
-        this.number = number;
+        return new PageResult(BlogArticleS.getRecords(),
+                BlogArticleS.getTotal(),
+                (int)BlogArticleS.getCurrent());
     }
 }

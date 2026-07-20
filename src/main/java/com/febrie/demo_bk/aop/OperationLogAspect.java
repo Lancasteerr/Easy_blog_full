@@ -62,7 +62,7 @@ public class OperationLogAspect {
 
             handleLog(joinPoint, log);
 
-            operationLogDAO.save(log);
+            operationLogDAO.insert(log);
         }
 
         return result;

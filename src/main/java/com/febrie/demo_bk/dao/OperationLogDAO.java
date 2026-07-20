@@ -1,7 +1,9 @@
 package com.febrie.demo_bk.dao;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.febrie.demo_bk.pojo.OperationLog;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.apache.ibatis.annotations.Mapper;
 
-public interface OperationLogDAO extends JpaRepository<OperationLog,Long> {
+@Mapper
+public interface OperationLogDAO extends BaseMapper<OperationLog> {
 }

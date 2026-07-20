@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.febrie.demo_bk.dao.ArticleViewStatDAO">
+
+
+    <update id="updateViewCount">
+
+        UPDATE article_view_stat
+
+        SET pv = pv + #{pvCount}
+
+        WHERE article_id = #{articleId}
+
+          AND stat_date = #{statDate}
+
+    </update>
+
+
+
+    <select id="getViewCountByArticleId"
+            resultType="int">
+
+        SELECT pv
+
+        FROM TABLE ( article_view_stat )
+
+        WHERE article_id = #{articleId}
+
+    </select>
+
+
+</mapper>
