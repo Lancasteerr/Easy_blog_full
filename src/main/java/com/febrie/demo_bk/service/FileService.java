@@ -136,4 +136,44 @@ public class FileService {
                 .build();
     }
 
+    /**
+     * 判断文件是否存在
+     */
+    public boolean exists(Long id){
+        FileObject object =
+                fileMapper.selectById(id);
+
+        if(object == null){
+            return false;
+        }
+
+        return storageService.exists(
+                object.getObjectKey()
+        );
+
+    }
+
+    /**
+     * 删除文件
+     */
+    public void delete(Long id){
+
+        FileObject object =
+                fileMapper.selectById(id);
+
+        if(object == null){
+            return;
+        }
+
+        //删除存储文件
+        storageService.delete(
+                object.getObjectKey()
+        );
+
+        //删除数据库记录
+        fileMapper.deleteById(id);
+
+    }
+
+
 }
