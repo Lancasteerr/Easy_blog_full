@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("api/public/**").permitAll()
                         .requestMatchers("api/admin/**").authenticated()//管理接口需要认证才能访问
-                        .anyRequest().authenticated()//其余所以访问都需要认证
+                        .anyRequest().authenticated()//其余所有访问都需要认证
                 )
                 .formLogin(form->form.disable())//禁用默认登录页
                 .httpBasic(basic->basic.disable())//禁用http basic

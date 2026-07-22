@@ -20,7 +20,7 @@ public class BlogArticle {
 
     private String articleContentHtml;
 
-    private String articleContentMd;
+    private String articleContentJson;
 
     private String articleAbstract;
 
@@ -34,7 +34,7 @@ public class BlogArticle {
         articleDTO.setId(blogArticle.getId());
         articleDTO.setArticleAbstract(blogArticle.getArticleAbstract());
         articleDTO.setArticleContentHtml(blogArticle.getArticleContentHtml());
-        articleDTO.setArticleContentMd(blogArticle.getArticleContentMd());
+        articleDTO.setArticleContentJson(blogArticle.getArticleContentJson());
         articleDTO.setArticleTitle(blogArticle.getArticleTitle());
         articleDTO.setArticleDate(blogArticle.getArticleDate());
         return articleDTO;
@@ -49,7 +49,7 @@ public class BlogArticle {
         blogArticle.setArticleAbstract(articleDTO.getArticleAbstract());
         blogArticle.setId(articleDTO.getId());
         blogArticle.setArticleTitle(articleDTO.getArticleTitle());
-        blogArticle.setArticleContentMd(articleDTO.getArticleContentMd());
+        blogArticle.setArticleContentJson(articleDTO.getArticleContentJson());
         blogArticle.setArticleContentHtml(articleDTO.getArticleContentHtml());
         return blogArticle;
     }

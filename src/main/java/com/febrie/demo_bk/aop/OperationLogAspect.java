@@ -1,6 +1,5 @@
 package com.febrie.demo_bk.aop;
 
-import com.alibaba.fastjson2.JSON;
 import com.febrie.demo_bk.dao.OperationLogDAO;
 import com.febrie.demo_bk.annotation.OperationLoger;
 import com.febrie.demo_bk.pojo.OperationLog;
@@ -14,8 +13,6 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;

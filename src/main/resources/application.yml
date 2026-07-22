@@ -1,0 +1,10 @@
+storage:
+
+  type: local
+
+
+  local:
+
+    root-path: /data/blog-storage
+
+    domain: http://localhost:8080/files

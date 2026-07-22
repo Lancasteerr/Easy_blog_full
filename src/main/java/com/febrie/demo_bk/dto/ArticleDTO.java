@@ -14,7 +14,7 @@ public class ArticleDTO {
 
     private String articleContentHtml;
 
-    private String articleContentMd;
+    private String articleContentJson;
 
     private String articleAbstract;
 

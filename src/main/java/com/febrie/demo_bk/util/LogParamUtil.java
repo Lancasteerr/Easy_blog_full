@@ -27,8 +27,8 @@ public class LogParamUtil {
                     "idCard",
                     "articleAbstract",
                     "articleContentHtml",
-                    "articleContentMd",
-                    "articleTitle"
+                    "articleTitle",
+                    "articleContentJson"
             ));
 
     /**
