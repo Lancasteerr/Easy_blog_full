@@ -65,8 +65,13 @@ public class RedisService {
     }
 
     //指定value自增
-    public void valueIncrease(String key){
-        redisTemplate.opsForValue().increment(key);
+    public Long valueIncrease(String key){
+        return redisTemplate.opsForValue().increment(key);
+    }
+
+    //指定key设定过期时间
+    public void setExpire(String key, long time, TimeUnit unit){
+        redisTemplate.expire(key, time, unit);
     }
 
     /**

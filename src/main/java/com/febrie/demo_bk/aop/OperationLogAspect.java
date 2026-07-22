@@ -4,6 +4,8 @@ import com.alibaba.fastjson2.JSON;
 import com.febrie.demo_bk.dao.OperationLogDAO;
 import com.febrie.demo_bk.annotation.OperationLoger;
 import com.febrie.demo_bk.pojo.OperationLog;
+import com.febrie.demo_bk.util.LogParamUtil;
+import com.febrie.demo_bk.util.RequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -84,18 +86,16 @@ public class OperationLogAspect {
                         + "." + method.getName()
         );
 
-        HttpServletRequest request =
-                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
-                        .getRequest();
+        HttpServletRequest request = RequestUtil.getRequest();
 
         log.setRequestUri(request.getRequestURI());
 
         log.setRequestMethod(request.getMethod());
 
-        log.setIp(request.getRemoteAddr());
+        log.setIp(RequestUtil.getIpAddress());
 
         log.setRequestParam(
-                JSON.toJSONString(joinPoint.getArgs())
+                LogParamUtil.parse(joinPoint.getArgs())
         );
 
         log.setCreateTime(LocalDateTime.now());
