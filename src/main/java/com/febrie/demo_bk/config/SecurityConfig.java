@@ -39,6 +39,7 @@ public class SecurityConfig {
                         }))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/files/**").permitAll()
                         .requestMatchers("api/public/**").permitAll()
                         .requestMatchers("api/admin/**").authenticated()//管理接口需要认证才能访问
                         .anyRequest().authenticated()//其余所有访问都需要认证

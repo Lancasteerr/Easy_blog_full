@@ -148,7 +148,11 @@ public class FileService {
         }
 
         return storageService.exists(
-                object.getObjectKey()
+                object.getBucketName()
+                        +
+                        "/"
+                        +
+                        object.getObjectKey()
         );
 
     }
@@ -167,7 +171,11 @@ public class FileService {
 
         //删除存储文件
         storageService.delete(
-                object.getObjectKey()
+                object.getBucketName()
+                        +
+                        "/"
+                        +
+                        object.getObjectKey()
         );
 
         //删除数据库记录

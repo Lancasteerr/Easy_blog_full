@@ -2,6 +2,7 @@ package com.febrie.demo_bk.service.storage;
 
 import com.febrie.demo_bk.pojo.FileUploadRequest;
 import com.febrie.demo_bk.pojo.FileUploadResult;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,25 @@ public class LocalStorageService
     @Value("${storage.local.domain}")
     private String domain;
 
+    private Path storageRootPath;
+
+    //新建保存路径
+    @PostConstruct
+    public void init() throws IOException {
+        storageRootPath =
+                Paths.get(rootPath)
+                        .toAbsolutePath()
+                        .normalize();
+
+        Files.createDirectories(storageRootPath);
+
+        System.out.println(
+                "Local file storage path: "
+                        +
+                        storageRootPath
+        );
+    }
+
     @Override
     public FileUploadResult upload(InputStream inputStream,
                                     FileUploadRequest request) {
@@ -31,11 +51,9 @@ public class LocalStorageService
         try {
 
             Path filePath =
-                    Paths.get(
-                            rootPath,
-                            request.getBucket(),
-                            request.getObjectKey()
-                    );
+                    storageRootPath
+                            .resolve(request.getBucket())
+                            .resolve(request.getObjectKey());
 
             Files.createDirectories(
                     filePath.getParent()
@@ -75,10 +93,7 @@ public class LocalStorageService
         try {
 
             return Files.newInputStream(
-                    Paths.get(
-                            rootPath,
-                            objectKey
-                    )
+                    storageRootPath.resolve(objectKey)
             );
 
         } catch (Exception e) {
@@ -95,10 +110,7 @@ public class LocalStorageService
         try {
 
             Files.deleteIfExists(
-                    Paths.get(
-                            rootPath,
-                            objectKey
-                    )
+                    storageRootPath.resolve(objectKey)
             );
 
         } catch (Exception e) {
@@ -120,7 +132,7 @@ public class LocalStorageService
     public boolean exists(String objectKey) {
 
         return Files.exists(
-                Paths.get(rootPath, objectKey)
+                storageRootPath.resolve(objectKey)
         );
 
     }

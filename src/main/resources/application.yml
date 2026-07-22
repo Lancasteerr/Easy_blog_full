@@ -5,6 +5,6 @@ storage:
 
   local:
 
-    root-path: /data/blog-storage
+    root-path: ./blog-storage
 
-    domain: http://localhost:8080/files
+    domain: http://localhost:8443/files
