@@ -1,0 +1,27 @@
+{
+  "name": "blog_front",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tiptap/extension-image": "^3.28.0",
+    "@tiptap/starter-kit": "^3.28.0",
+    "@tiptap/vue-3": "^3.28.0",
+    "axios": "^1.18.1",
+    "element-plus": "^2.14.3",
+    "vue": "^3.5.40",
+    "vue-router": "^4.6.4",
+    "vuedraggable": "^4.1.0",
+    "vuex": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "sass": "^1.101.6",
+    "vite": "^8.1.5"
+  }
+}
