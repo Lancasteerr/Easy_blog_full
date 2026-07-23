@@ -1,5 +1,7 @@
 package com.febrie.demo_bk.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
@@ -10,6 +12,7 @@ public class FileDTO {
     /**
      * 文件ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
 
