@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@TableName("jotter_article")
+@TableName("blog_article")
 @JsonIgnoreProperties({"handler", "hibernateLazyInitializer"})
 @Data
 public class BlogArticle {
@@ -26,6 +26,8 @@ public class BlogArticle {
 
     private LocalDateTime articleDate;
 
+    private Long viewCount;
+
     public static ArticleDTO toDTO(BlogArticle blogArticle) {
         if (blogArticle == null) return null;
 
@@ -37,6 +39,8 @@ public class BlogArticle {
         articleDTO.setArticleContentJson(blogArticle.getArticleContentJson());
         articleDTO.setArticleTitle(blogArticle.getArticleTitle());
         articleDTO.setArticleDate(blogArticle.getArticleDate());
+        articleDTO.setViewCount(blogArticle.getViewCount());
+
         return articleDTO;
     }
 
@@ -51,6 +55,8 @@ public class BlogArticle {
         blogArticle.setArticleTitle(articleDTO.getArticleTitle());
         blogArticle.setArticleContentJson(articleDTO.getArticleContentJson());
         blogArticle.setArticleContentHtml(articleDTO.getArticleContentHtml());
+        blogArticle.setViewCount(articleDTO.getViewCount());
+
         return blogArticle;
     }
 }

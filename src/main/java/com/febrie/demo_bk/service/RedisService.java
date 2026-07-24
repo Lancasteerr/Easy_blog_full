@@ -3,24 +3,21 @@ package com.febrie.demo_bk.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@AllArgsConstructor
 public class RedisService {
 
     private final RedisTemplate redisTemplate;
     private  final StringRedisTemplate stringRedisTemplate;
-
-    //@Autowired
-    public RedisService(RedisTemplate redisTemplate, StringRedisTemplate stringRedisTemplate) {
-        this.redisTemplate = redisTemplate;
-        this.stringRedisTemplate = stringRedisTemplate;
-    }
 
     public void set(String key, String value, long timeout, TimeUnit unit){
         stringRedisTemplate.opsForValue().set(key,value,timeout,unit);
@@ -65,13 +62,29 @@ public class RedisService {
     }
 
     //指定value自增
-    public Long valueIncrease(String key){
+    public Long ValueIncrease(String key){
         return redisTemplate.opsForValue().increment(key);
     }
 
+    /**
+     * 序列方法：stringRedisTemplate,opsForHash
+     */
+    public Long hashStringValueIncrease(String key, String id, Long value) {
+        return  stringRedisTemplate.opsForHash()
+                .increment(key, id, value);
+    }
+
+    public Map<Object, Object> getHashEntries(String key) {
+        return stringRedisTemplate.opsForHash().entries(key);
+    }
+
     //指定key设定过期时间
-    public void setExpire(String key, long time, TimeUnit unit){
+    public void redisSetExpire(String key, long time, TimeUnit unit){
         redisTemplate.expire(key, time, unit);
+    }
+
+    public void stringSetExpire(String key, long time, TimeUnit unit) {
+        stringRedisTemplate.expire(key, time, unit);
     }
 
     /**

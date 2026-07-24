@@ -19,4 +19,6 @@ public class ArticleDTO {
     private String articleAbstract;
 
     private LocalDateTime articleDate;
+
+    private Long viewCount;
 }

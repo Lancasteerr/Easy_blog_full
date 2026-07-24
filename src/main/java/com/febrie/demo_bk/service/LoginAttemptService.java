@@ -54,12 +54,12 @@ public class LoginAttemptService {
         String ipKey =
                 "login:fail:ip:" + ip;
 
-        Long userCount = redisService.valueIncrease(userKey);
+        Long userCount = redisService.ValueIncrease(userKey);
 
-        Long ipCount = redisService.valueIncrease(ipKey);
+        Long ipCount = redisService.ValueIncrease(ipKey);
 
         if(userCount == 1) {
-            redisService.setExpire(
+            redisService.redisSetExpire(
                     userKey,
                     10,
                     TimeUnit.MINUTES
@@ -67,7 +67,7 @@ public class LoginAttemptService {
         }
 
         if(ipCount == 1){
-            redisService.setExpire(
+            redisService.redisSetExpire(
                     ipKey,
                     10,
                     TimeUnit.MINUTES

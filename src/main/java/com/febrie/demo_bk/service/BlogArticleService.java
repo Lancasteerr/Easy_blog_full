@@ -9,6 +9,7 @@ import com.febrie.demo_bk.dao.BlogArticleDAO;
 import com.febrie.demo_bk.dto.ArticleDTO;
 import com.febrie.demo_bk.pojo.BlogArticle;
 import com.febrie.demo_bk.result.PageResult;
+import com.febrie.demo_bk.service.pv.ArticleViewServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +32,8 @@ public class BlogArticleService {
     private ArticleViewStatDAO articleViewStatDAO;
     @Autowired
     private FileService fileService;
+    @Autowired
+    private ArticleViewServiceImpl articleViewService;
 
     /**
      * 先改数据库，再删Redis
@@ -66,10 +69,12 @@ public class BlogArticleService {
         if(cache==null){
             ArticleDTO dto = BlogArticle.toDTO(blogArticleDAO.selectById(id));
             if(dto==null) return null;
+            articleViewService.recordView((long) id);
             redisService.setObject(key,dto,30, TimeUnit.DAYS);
             return dto;
         }
 
+        articleViewService.recordView((long) id);
         return cache;
     }
 
@@ -193,7 +198,15 @@ public class BlogArticleService {
 
     //版本号自增
     private void increasePageVersion(){
-        redisService.valueIncrease(ARTICLE_PAGE_VERSION_KEY);
+        redisService.ValueIncrease(ARTICLE_PAGE_VERSION_KEY);
+    }
+
+    public void invalidateViewCountCache(Set<Integer> articleIds) {
+        if (articleIds == null || articleIds.isEmpty()) {
+            return;
+        }
+        articleIds.forEach(id -> redisService.delete("blog:article:detail:" + id));
+        increasePageVersion();
     }
 
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Controller
 public class AddArticleController {
@@ -20,7 +21,9 @@ public class AddArticleController {
     @ResponseBody
     @OperationLoger(module = "文章",type = "增加或修改")
     public Result article(@RequestBody ArticleDTO articleDTO) {
-        articleDTO.setArticleDate(LocalDateTime.now());
+        articleDTO.setArticleDate(LocalDateTime.now(
+                ZoneId.of("Asia/Shanghai")
+        ));
         blogArticleService.addOrUpdate(articleDTO);
         return new Result(200);
     }

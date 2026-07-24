@@ -8,3 +8,9 @@ storage:
     root-path: ./blog-storage
 
     domain: http://localhost:8443/files
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+  configuration:
+    map-underscore-to-camel-case: true

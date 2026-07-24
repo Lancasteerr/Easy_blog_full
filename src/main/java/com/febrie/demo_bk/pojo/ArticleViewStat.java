@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @TableName("article_view_stat")
 @Getter
 @Setter
@@ -15,7 +17,10 @@ public class ArticleViewStat {
 
     private int articleId;
 
-    private String statDate;
+    private LocalDate statDate;
 
-    private int pv;
+    /**
+     * 当天浏览量
+     */
+    private Long pv;
 }
