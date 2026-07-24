@@ -18,9 +18,6 @@ public class FileController {
 
     /**
      * 文件上传
-     * @param file
-     * @return
-     * @throws IOException
      */
     @PostMapping("/upload")
     public FileDTO upload(
