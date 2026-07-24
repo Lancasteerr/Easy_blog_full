@@ -112,6 +112,9 @@ export default {
       this.page = nextPage;
       this.loadArticles();
     },
+    goToArticleList(){
+      router.push('/articlelist');
+    },
     jumpto(id){
       router.push({ path: '/article', query: { id: id } });
     },
@@ -143,10 +146,16 @@ export default {
   <div class="ArticleList-Draggable" :style="{left:position.x + 'px' , top:position.y + 'px',zIndex: zIndex}" @pointerdown = "onMouseDown" v-bind="$attrs">
     <div class="ArticleList">
       <div class="ArticleListtitle">
-        <div style="display: flex;font-size: 16px;justify-content: center;">
-          <div>文章</div>
-          <div class="ArticleListStitle">ARTICLE</div>
-        </div>
+        <button
+            type="button"
+            class="ArticleListTitleButton"
+            aria-label="查看文章列表"
+            @pointerdown.stop
+            @click="goToArticleList"
+        >
+          <span>文章</span>
+          <span class="ArticleListStitle">ARTICLE</span>
+        </button>
       </div>
       <div class="ArticleListcontext">
         <div v-if="loading" class="ArticleState">加载中...</div>
@@ -226,6 +235,27 @@ export default {
   padding: 15px;
   color: #ffffff;
   font-family: "Source Han Sans Bold" , sans-serif;
+}
+.ArticleListTitleButton{
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  transition: border-color .2s ease, color .2s ease;
+}
+.ArticleListTitleButton:hover,
+.ArticleListTitleButton:focus-visible{
+  border-bottom-color: #f3ff00;
+  color: #f3ff00;
+  outline: none;
 }
 .ArticleListStitle{
   box-sizing: border-box;
