@@ -11,14 +11,14 @@ import ArticleList from "@/components/articlelist-index/ArticleList.vue";
 
 <style scoped lang="scss">
 .ArticleList-container {
-  margin-left: 25%;
-  margin-top: 3%;
-  width: 50%;
-
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0.88);
+  width: min(860px, calc(100% - 32px));
+  margin: 104px auto 0;
+  padding: 18px;
+  background-color: rgba(43, 47, 54, 0.88);
   backdrop-filter: blur(8px);
-  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.24);
   box-sizing: border-box;
 }
 </style>

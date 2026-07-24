@@ -126,7 +126,7 @@ export default {
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(48,48,48,.95) transparent;
+  scrollbar-color: rgba(120,120,120,.85) transparent;
   cursor: auto;
   color: #ffffff;
   box-sizing: border-box;
@@ -150,11 +150,11 @@ export default {
 }
 .ContactMecontext::-webkit-scrollbar-thumb{
   border: 0;
-  border-radius: 999px;
-  background-color: rgba(48,48,48,.95);
+  border-radius: 0;
+  background-color: rgba(120,120,120,.85);
 }
 .ContactMecontext::-webkit-scrollbar-thumb:hover{
-  background-color: rgba(72,72,72,.98);
+  background-color: rgba(150,150,150,.95);
 }
 .ContactMecontext::-webkit-scrollbar-button,
 .ContactMecontext::-webkit-scrollbar-corner{

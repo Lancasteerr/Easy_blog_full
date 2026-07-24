@@ -49,8 +49,10 @@ const logout = () =>{
   height: 80px;
   width: 100%;
   padding: 0 20px;
-  background-color: rgba(0,0,0,0);
-  border-bottom: 1px solid hsla(0,0%,100%,.5);
+  backdrop-filter: blur(10px);
+  background-color: rgba(33, 36, 42, 0.78);
+  border-bottom: 1px solid rgba(243, 255, 0, 0.18);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
 }
 #Manage-logo img{
   height: 70px;
@@ -84,8 +86,9 @@ const logout = () =>{
   color: #ffffff;
   font-family: "Source Han Sans Bold" , sans-serif;
   --el-button-text-color: #ffffff;
-  --el-button-hover-text-color: #ffffff;
-  --el-button-active-text-color: #ffffff;
+  --el-button-hover-text-color: #f3ff00;
+  --el-button-active-text-color: #f3ff00;
+  transition: color 0.2s ease;
 }
 .Write-Article{
   margin-left: 20px !important;
@@ -97,6 +100,6 @@ const logout = () =>{
 .to-homePage :deep(span),
 .Write-Article :deep(span),
 .Manage-Article :deep(span){
-  color: #ffffff;
+  color: inherit;
 }
 </style>
