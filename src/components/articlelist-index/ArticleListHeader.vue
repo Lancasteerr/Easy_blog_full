@@ -59,5 +59,12 @@ const goTohomepage = () =>{
   font-size: 20px;
   color: #ffffff;
   font-family: "Source Han Sans Bold" , sans-serif;
+  --el-button-text-color: #ffffff;
+  --el-button-hover-text-color: #ffffff;
+  --el-button-active-text-color: #ffffff;
+}
+
+.to-homePage :deep(span){
+  color: #ffffff;
 }
 </style>

@@ -77,21 +77,26 @@ const logout = () =>{
   height: 100%;
   width: 15%;
 }
-.to-homePage{
+.to-homePage,
+.Write-Article,
+.Manage-Article{
   font-size: 20px;
   color: #ffffff;
   font-family: "Source Han Sans Bold" , sans-serif;
+  --el-button-text-color: #ffffff;
+  --el-button-hover-text-color: #ffffff;
+  --el-button-active-text-color: #ffffff;
 }
 .Write-Article{
   margin-left: 20px !important;
-  font-size: 20px;
-  color: #ffffff;
-  font-family: "Source Han Sans Bold" , sans-serif;
 }
 .Manage-Article{
   margin-left: 20px !important;
-  font-size: 20px;
-  font-family: "Source Han Sans Bold" , sans-serif;
+}
+
+.to-homePage :deep(span),
+.Write-Article :deep(span),
+.Manage-Article :deep(span){
   color: #ffffff;
 }
 </style>

@@ -56,12 +56,18 @@ const goToRegisterpage = () => {
   background-color: #ffffff;
   margin: 0 13px;
 }
-.Loginbutton{
-  font-size: 16px;
-  color: #ffffff;
-}
+
+.Loginbutton,
 .Register{
   font-size: 16px;
+  color: #ffffff;
+  --el-button-text-color: #ffffff;
+  --el-button-hover-text-color: #ffffff;
+  --el-button-active-text-color: #ffffff;
+}
+
+.Loginbutton :deep(span),
+.Register :deep(span){
   color: #ffffff;
 }
 </style>
