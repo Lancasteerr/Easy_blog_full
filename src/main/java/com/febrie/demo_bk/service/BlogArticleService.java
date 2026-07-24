@@ -3,6 +3,7 @@ package com.febrie.demo_bk.service;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.febrie.demo_bk.dao.ArticleViewStatDAO;
 import com.febrie.demo_bk.dao.BlogArticleDAO;
@@ -168,10 +169,15 @@ public class BlogArticleService {
     }
 
     public PageResult getArticleList(int page, int size) {
+        return getArticleList(page, size, null);
+    }
+
+    public PageResult getArticleList(int page, int size, String sort) {
         Long version = getArticlePageVersion();
+        String normalizedSort = normalizeArticleListSort(sort);
         String cacheKey = String.format(
-                "blog:article:page:%d:%d:%d",
-                version, page, size);
+                "blog:article:page:%d:%d:%d:%s",
+                version, page, size, normalizedSort);
         PageResult pageResult = redisService.getObject(cacheKey, PageResult.class);
         if(pageResult == null){
 
@@ -181,9 +187,17 @@ public class BlogArticleService {
                             size
                     );
 
+            LambdaQueryWrapper<BlogArticle> queryWrapper = null;
+            if ("viewCountDesc".equals(normalizedSort)) {
+                queryWrapper = new LambdaQueryWrapper<BlogArticle>()
+                        .orderByDesc(BlogArticle::getViewCount)
+                        .orderByDesc(BlogArticle::getArticleDate)
+                        .orderByDesc(BlogArticle::getId);
+            }
+
             Page<BlogArticle> result = blogArticleDAO.selectPage(
                     articlePage,
-                    null
+                    queryWrapper
             );
 
 
@@ -194,6 +208,13 @@ public class BlogArticleService {
             return pageResult;
         }
         return pageResult;
+    }
+
+    private String normalizeArticleListSort(String sort) {
+        if ("viewCountDesc".equals(sort)) {
+            return sort;
+        }
+        return "default";
     }
 
     //版本号自增
