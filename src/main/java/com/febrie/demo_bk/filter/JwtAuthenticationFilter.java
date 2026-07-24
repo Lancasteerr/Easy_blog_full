@@ -23,8 +23,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String path = request.getRequestURI();
         //如果是无需认证的api访问 跳过token检验
-        if(path.startsWith("/public")){
+        if("OPTIONS".equalsIgnoreCase(request.getMethod())
+                || path.startsWith("/api/public/")
+                || path.startsWith("/files/")){
             filterChain.doFilter(request,response);//跳过，不做token校验
+            return;
         }
 
         String token = request.getHeader("Authorization");
