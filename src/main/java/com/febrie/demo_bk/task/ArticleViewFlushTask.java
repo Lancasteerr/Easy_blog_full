@@ -30,6 +30,7 @@ public class ArticleViewFlushTask {
     private static final ZoneId BUSINESS_ZONE =
             ZoneId.of("Asia/Shanghai");
 
+    //5min
     @Scheduled(fixedDelay = 5 * 60 * 1000)
     @Transactional(rollbackFor = Exception.class)
     public void flushViewStats() {
