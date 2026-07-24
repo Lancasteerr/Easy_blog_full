@@ -5,6 +5,7 @@ import AboutDraggable from "@/components/AboutDraggable.vue";
 import WorkExpDraggable from "@/components/WorkExpDraggable.vue";
 import ContactMeDraggable from "@/components/ContactMeDraggable.vue";
 import ArticleListDraggable from "@/components/ArticleListDraggable.vue";
+import {defaultHomeCards, loadHomeCards} from "@/utils/homeCards";
 
 export default {
   name: 'MyHome',
@@ -16,6 +17,14 @@ export default {
     ContactMeDraggable,
     ArticleListDraggable,
   },
+  data() {
+    return {
+      homeCards: defaultHomeCards,
+    };
+  },
+  async mounted() {
+    this.homeCards = await loadHomeCards();
+  },
 };
 </script>
 
@@ -26,11 +35,11 @@ export default {
     <!-- 轮播背景组件 -->
     <BackgroundImg></BackgroundImg>
     <!-- 可拖拽About组件 -->
-    <AboutDraggable></AboutDraggable>
+    <AboutDraggable :card="homeCards.about"></AboutDraggable>
     <!--可拖拽WorkExp组件 -->
-    <WorkExpDraggable></WorkExpDraggable>
+    <WorkExpDraggable :card="homeCards.workExp"></WorkExpDraggable>
     <!--可拖拽ContactMe组件 -->
-    <ContactMeDraggable></ContactMeDraggable>
+    <ContactMeDraggable :card="homeCards.contact"></ContactMeDraggable>
     <!--可拖拽文章列表组件 -->
     <ArticleListDraggable></ArticleListDraggable>
   </div>

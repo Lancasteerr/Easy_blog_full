@@ -73,8 +73,6 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
-@import "@/assets/markdown.css";
-
 /* 页面容器 */
 .article-container {
   margin-top: 40px;

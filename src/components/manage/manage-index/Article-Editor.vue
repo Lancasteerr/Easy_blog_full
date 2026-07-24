@@ -102,6 +102,11 @@ const editor = useEditor({
     StarterKit.configure({
       link: {
         openOnClick: false,
+        defaultProtocol: "https",
+        HTMLAttributes: {
+          target: "_blank",
+          rel: "noopener noreferrer nofollow",
+        },
       },
     }),
     ImageWithFileId.configure({
@@ -215,6 +220,20 @@ const uploadImage = async event => {
   }
 };
 
+const normalizeUrl = url => {
+  const trimmedUrl = url.trim();
+
+  if (!trimmedUrl) {
+    return "";
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmedUrl) || /^(\/|#|\.\/|\.\.\/)/.test(trimmedUrl)) {
+    return trimmedUrl;
+  }
+
+  return `https://${trimmedUrl}`;
+};
+
 const setLink = async () => {
   if (!editor.value) return;
 
@@ -228,7 +247,14 @@ const setLink = async () => {
     return;
   }
 
-  editor.value.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  const normalizedUrl = normalizeUrl(url);
+
+  if (!normalizedUrl) {
+    editor.value.chain().focus().extendMarkRange("link").unsetLink().run();
+    return;
+  }
+
+  editor.value.chain().focus().extendMarkRange("link").setLink({ href: normalizedUrl }).run();
 };
 
 const saveArticles = async () => {
@@ -361,6 +387,15 @@ onBeforeUnmount(() => {
           >
             &lt;/&gt;
           </button>
+          <button
+            type="button"
+            class="toolbar-button code-block-button"
+            :class="{ active: editor.isActive('codeBlock') }"
+            title="代码块"
+            @click="editor.chain().focus().toggleCodeBlock().run()"
+          >
+            Code
+          </button>
         </div>
 
         <div class="toolbar-group">
@@ -450,8 +485,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-@import "@/assets/markdown.css";
-
 .editor {
   width: 99%;
   height: 99%;

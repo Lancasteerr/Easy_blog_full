@@ -4,6 +4,12 @@ import {globalZIndex} from "@/utils/DraggableZIndex";
 
 export default {
   name:"WorkExpDraggable",
+  props: {
+    card: {
+      type: Object,
+      required: true,
+    },
+  },
   data(){
     return {
       position: {
@@ -61,13 +67,16 @@ export default {
   <div class="WorkExp-Draggable" :style="{left:position.x + 'px' , top:position.y + 'px',zIndex: zIndex}" @pointerdown = "onMouseDown" v-bind="$attrs">
     <div class="WorkExp">
       <div class="WorkExptitle">
-        <div style="display: flex;font-size: 16px;" class="WorkExpToalTitle">
-          <div>工作履历</div>
-          <div class="WorkExpStitle">CAREER</div>
+        <div class="WorkExpToalTitle">
+          <div>{{ card.title }}</div>
+          <div class="WorkExpStitle">{{ card.subtitle }}</div>
         </div>
       </div>
-      <div class="WorkExpcontext">
-        Type WorkExp context.
+      <div class="WorkExpcontext" @pointerdown.stop>
+        <p v-for="(paragraph, index) in card.paragraphs" :key="index">{{ paragraph }}</p>
+        <ul v-if="card.items && card.items.length" class="WorkExpList">
+          <li v-for="(item, index) in card.items" :key="index">{{ item }}</li>
+        </ul>
       </div>
     </div>
   </div>
@@ -85,9 +94,14 @@ export default {
 .WorkExp{
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .WorkExpToalTitle{
   box-sizing: border-box;
+  display: flex;
+  font-size: 16px;
   padding-bottom: 8px;
   border-bottom: 2px solid #f3ff00;
 }
@@ -108,11 +122,55 @@ export default {
   font-family: Source Han Sans Regular , sans-serif;
 }
 .WorkExpcontext{
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(48,48,48,.95) transparent;
+  cursor: auto;
   color: #ffffff;
   box-sizing: border-box;
-  padding-left: 15px;
-  padding-right: 15px;
-  padding-bottom: 15px;
+  padding: 0 15px 15px;
+  line-height: 1.65;
+  font-size: 13px;
   font-family: Source Han Sans Regular , sans-serif;
+}
+.WorkExpcontext p{
+  margin: 0 0 7px;
+}
+.WorkExpcontext p:last-child{
+  margin-bottom: 0;
+}
+.WorkExpcontext::-webkit-scrollbar{
+  width: 4px;
+}
+.WorkExpcontext::-webkit-scrollbar-track{
+  border: 0;
+  background: transparent;
+}
+.WorkExpcontext::-webkit-scrollbar-thumb{
+  border: 0;
+  border-radius: 999px;
+  background-color: rgba(48,48,48,.95);
+}
+.WorkExpcontext::-webkit-scrollbar-thumb:hover{
+  background-color: rgba(72,72,72,.98);
+}
+.WorkExpcontext::-webkit-scrollbar-button,
+.WorkExpcontext::-webkit-scrollbar-corner{
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+.WorkExpList{
+  margin: 0;
+  padding-left: 18px;
+}
+.WorkExpList li{
+  margin-bottom: 5px;
+}
+.WorkExpList li:last-child{
+  margin-bottom: 0;
 }
 </style>
