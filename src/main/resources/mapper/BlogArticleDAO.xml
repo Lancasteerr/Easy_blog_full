@@ -23,4 +23,20 @@
 
     </update>
 
+    <select id="selectArticleListPage"
+            resultType="com.febrie.demo_bk.dto.ArticleListDTO">
+
+        SELECT
+            id,
+            article_title AS articleTitle,
+            article_abstract AS articleAbstract,
+            article_date AS articleDate,
+<!--        article_cover AS articleCover-->
+            view_count AS viewCount
+        FROM blog_article
+        ${ew.customSqlSegment}
+
+
+    </select>
+
 </mapper>

@@ -16,6 +16,12 @@ public class FileController {
 
     private final FileService fileService;
 
+    /**
+     * 文件上传
+     * @param file
+     * @return
+     * @throws IOException
+     */
     @PostMapping("/upload")
     public FileDTO upload(
             MultipartFile file

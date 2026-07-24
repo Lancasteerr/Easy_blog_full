@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.febrie.demo_bk.dao.ArticleViewStatDAO;
 import com.febrie.demo_bk.dao.BlogArticleDAO;
 import com.febrie.demo_bk.dto.ArticleDTO;
+import com.febrie.demo_bk.dto.ArticleListDTO;
 import com.febrie.demo_bk.pojo.BlogArticle;
 import com.febrie.demo_bk.result.PageResult;
 import com.febrie.demo_bk.service.pv.ArticleViewServiceImpl;
@@ -179,9 +180,10 @@ public class BlogArticleService {
                 "blog:article:page:%d:%d:%d:%s",
                 version, page, size, normalizedSort);
         PageResult pageResult = redisService.getObject(cacheKey, PageResult.class);
+        //访问MySql
         if(pageResult == null){
 
-            Page<BlogArticle> articlePage =
+            Page<ArticleListDTO> articlePage =
                     new Page<>(
                             page,
                             size
@@ -195,7 +197,7 @@ public class BlogArticleService {
                         .orderByDesc(BlogArticle::getId);
             }
 
-            Page<BlogArticle> result = blogArticleDAO.selectPage(
+            Page<ArticleListDTO> result = blogArticleDAO.selectArticleListPage(
                     articlePage,
                     queryWrapper
             );
@@ -203,7 +205,7 @@ public class BlogArticleService {
 
             pageResult = PageResult.from(result);
             //加入新缓存
-            redisService.setObject(cacheKey,pageResult,7,TimeUnit.DAYS);
+            redisService.setObject(cacheKey,pageResult,30,TimeUnit.MINUTES);
 
             return pageResult;
         }
@@ -226,7 +228,9 @@ public class BlogArticleService {
         if (articleIds == null || articleIds.isEmpty()) {
             return;
         }
+        //删除浏览量更新文章的详细缓存
         articleIds.forEach(id -> redisService.delete("blog:article:detail:" + id));
+        //废除所有列表缓存
         increasePageVersion();
     }
 

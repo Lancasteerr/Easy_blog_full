@@ -17,6 +17,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 将Redis中的浏览量刷到Mysql
+ * <p>
+ * 并删除浏览量更新的文章的详细缓存
+ * <p>
+ * 并自增版本号 废除所有文章列表
+ */
 @Slf4j
 @Component
 @AllArgsConstructor
@@ -34,6 +41,7 @@ public class ArticleViewFlushTask {
     @Scheduled(fixedDelay = 5 * 60 * 1000)
     @Transactional(rollbackFor = Exception.class)
     public void flushViewStats() {
+        //刷新浏览量的文章id
         Set<Integer> changedArticleIds = new HashSet<>();
 
         flushDate(LocalDate.now(BUSINESS_ZONE).minusDays(1), changedArticleIds);
