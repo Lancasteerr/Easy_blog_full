@@ -12,6 +12,7 @@ import com.febrie.demo_bk.dto.ArticleListDTO;
 import com.febrie.demo_bk.pojo.BlogArticle;
 import com.febrie.demo_bk.result.PageResult;
 import com.febrie.demo_bk.service.pv.ArticleViewServiceImpl;
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,22 +23,38 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@AllArgsConstructor
 public class BlogArticleService {
     private static final Pattern DATA_FILE_ID_PATTERN =
             Pattern.compile("data-file-id=[\"'](\\d+)[\"']");
 
-    @Autowired
     private BlogArticleDAO blogArticleDAO;
-    @Autowired
+
     private RedisService redisService;
-    @Autowired
+
     private ArticleViewStatDAO articleViewStatDAO;
-    @Autowired
+
     private FileService fileService;
-    @Autowired
+
     private ArticleViewServiceImpl articleViewService;
 
     /**
+     * 文章详细缓存 Key
+     */
+    private static final String ARTICLE_DETAIL_CACHE_KEY = "blog:article:detail:";
+
+    /**
+     * 未排序文章列表 Key
+     */
+    private static final String DEFAULT_ARTICLE_LIST_VERSION_KEY = "blog:article:page:";
+
+    /**
+     * 按浏览量排序文章列表 Key
+     */
+    private static final String PV_DESC_ARTICLE_LIST_VERSION_KEY = "blog:article:page:hot:";
+
+    /**
+     * 更新文章
      * 先改数据库，再删Redis
      */
     //@OperationLoger(module = "文章",type = "增加或修改")
@@ -54,10 +71,12 @@ public class BlogArticleService {
         } else {
             blogArticleDAO.updateById(blogArticle);
             deleteRemovedArticleImages(oldArticle, articleDTO);
-            redisService.delete("blog:article:detail:"+articleDTO.getId());
+            redisService.delete(ARTICLE_DETAIL_CACHE_KEY + articleDTO.getId());
         }
 
-        increasePageVersion();
+        //两种列表更新版本号
+        redisService.ValueIncrease(DEFAULT_ARTICLE_LIST_VERSION_KEY + "version");
+        redisService.ValueIncrease(PV_DESC_ARTICLE_LIST_VERSION_KEY + "version");
     }
 
     /**
@@ -65,14 +84,14 @@ public class BlogArticleService {
      */
     public ArticleDTO findById (int id) {
 
-        String key = "blog:article:detail:" + id;
+        String key = ARTICLE_DETAIL_CACHE_KEY + id;
 
         ArticleDTO cache = redisService.getObject(key,ArticleDTO.class);
         if(cache==null){
             ArticleDTO dto = BlogArticle.toDTO(blogArticleDAO.selectById(id));
             if(dto==null) return null;
             articleViewService.recordView((long) id);
-            redisService.setObject(key,dto,30, TimeUnit.DAYS);
+            redisService.setObject(key,dto,30, TimeUnit.DAYS);//文章详细缓存TTL
             return dto;
         }
 
@@ -85,9 +104,10 @@ public class BlogArticleService {
         BlogArticle article = blogArticleDAO.selectById(id);
         blogArticleDAO.deleteById(id);
         deleteArticleImages(article);
-        redisService.delete("blog:article:detail:" + id);
+        redisService.delete(ARTICLE_DETAIL_CACHE_KEY + id);
         //所有页面缓存失效
-        increasePageVersion();
+        redisService.ValueIncrease(DEFAULT_ARTICLE_LIST_VERSION_KEY + "version");
+        redisService.ValueIncrease(PV_DESC_ARTICLE_LIST_VERSION_KEY + "version");
     }
 
     private void deleteRemovedArticleImages(BlogArticle oldArticle, ArticleDTO newArticle) {
@@ -157,13 +177,27 @@ public class BlogArticleService {
         }
     }
 
-    private static final String ARTICLE_PAGE_VERSION_KEY = "blog:article:page:version";
+    /**
+     * 获取浏览量排序版本号
+     */
+    private Long getArticlePageHotVersion(){
+        String key = PV_DESC_ARTICLE_LIST_VERSION_KEY + "version";
+        Long version = redisService.getObject(key, Long.class);
+        if(version == null){
+            redisService.setObject(key, 1L);
+            return 1L;
+        }
+        return version;
+    }
 
-    //获取分页版本号
-    private Long getArticlePageVersion(){
-        Long version = redisService.getObject(ARTICLE_PAGE_VERSION_KEY,long.class);
-        if(version==null){
-            redisService.setObject(ARTICLE_PAGE_VERSION_KEY,1L);
+    /**
+     * 获取默认排序版本号
+     */
+    private Long getArticlePageDefaultVersion(){
+        String key = DEFAULT_ARTICLE_LIST_VERSION_KEY + "version";
+        Long version = redisService.getObject(key, Long.class);
+        if(version == null) {
+            redisService.setObject(key, 1L);
             return 1L;
         }
         return version;
@@ -174,10 +208,20 @@ public class BlogArticleService {
     }
 
     public PageResult getArticleList(int page, int size, String sort) {
-        Long version = getArticlePageVersion();
+        Long version;
+        String cacheKey;
         String normalizedSort = normalizeArticleListSort(sort);
-        String cacheKey = String.format(
-                "blog:article:page:%d:%d:%d:%s",
+
+        if("viewCountDesc".equals(normalizedSort)) {
+            version = getArticlePageHotVersion();
+            cacheKey = PV_DESC_ARTICLE_LIST_VERSION_KEY;
+        } else {//default
+            version = getArticlePageDefaultVersion();
+            cacheKey = DEFAULT_ARTICLE_LIST_VERSION_KEY;
+        }
+
+        cacheKey = cacheKey + String.format(
+                "%d:%d:%d:%s",
                 version, page, size, normalizedSort);
         PageResult pageResult = redisService.getObject(cacheKey, PageResult.class);
         //访问MySql
@@ -189,11 +233,17 @@ public class BlogArticleService {
                             size
                     );
 
-            LambdaQueryWrapper<BlogArticle> queryWrapper = null;
+            LambdaQueryWrapper<BlogArticle> queryWrapper =
+                    new LambdaQueryWrapper<>();
+
             if ("viewCountDesc".equals(normalizedSort)) {
-                queryWrapper = new LambdaQueryWrapper<BlogArticle>()
+
+                queryWrapper
                         .orderByDesc(BlogArticle::getViewCount)
                         .orderByDesc(BlogArticle::getArticleDate)
+                        .orderByDesc(BlogArticle::getId);
+            } else {
+                queryWrapper
                         .orderByDesc(BlogArticle::getId);
             }
 
@@ -204,8 +254,12 @@ public class BlogArticleService {
 
 
             pageResult = PageResult.from(result);
-            //加入新缓存
-            redisService.setObject(cacheKey,pageResult,30,TimeUnit.MINUTES);
+            //加入新缓存 按列表类型设置缓存TTL
+            if("viewCountDesc".equals(normalizedSort)) {
+                redisService.setObject(cacheKey,pageResult,1,TimeUnit.HOURS);
+            } else {
+                redisService.setObject(cacheKey,pageResult,7,TimeUnit.DAYS);
+            }
 
             return pageResult;
         }
@@ -219,19 +273,14 @@ public class BlogArticleService {
         return "default";
     }
 
-    //版本号自增
-    private void increasePageVersion(){
-        redisService.ValueIncrease(ARTICLE_PAGE_VERSION_KEY);
-    }
-
     public void invalidateViewCountCache(Set<Integer> articleIds) {
         if (articleIds == null || articleIds.isEmpty()) {
             return;
         }
         //删除浏览量更新文章的详细缓存
         articleIds.forEach(id -> redisService.delete("blog:article:detail:" + id));
-        //废除所有列表缓存
-        increasePageVersion();
+        //废除浏览量列表缓存
+        redisService.ValueIncrease(PV_DESC_ARTICLE_LIST_VERSION_KEY + "version");
     }
 
 }
