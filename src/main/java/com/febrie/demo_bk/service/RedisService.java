@@ -61,7 +61,7 @@ public class RedisService {
         return redisTemplate.delete(keys);
     }
 
-    //指定value自增
+    //指定value自增 原子自增避免并发问题
     public Long ValueIncrease(String key){
         return redisTemplate.opsForValue().increment(key);
     }
@@ -85,6 +85,16 @@ public class RedisService {
 
     public void stringSetExpire(String key, long time, TimeUnit unit) {
         stringRedisTemplate.expire(key, time, unit);
+    }
+
+    /**
+     * 原子操作 返回之前是否存在
+     */
+    public boolean setIfAbsent(String key, Object value) {
+        Boolean result = redisTemplate.opsForValue()
+                .setIfAbsent(key, value);
+
+        return result.equals(Boolean.TRUE);
     }
 
     /**

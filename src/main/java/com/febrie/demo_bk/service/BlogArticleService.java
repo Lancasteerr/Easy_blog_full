@@ -178,29 +178,25 @@ public class BlogArticleService {
     }
 
     /**
-     * 获取浏览量排序版本号
+     * 获取浏览量排序版本号 此处需保证操作setIfAbsent原子性
      */
     private Long getArticlePageHotVersion(){
         String key = PV_DESC_ARTICLE_LIST_VERSION_KEY + "version";
-        Long version = redisService.getObject(key, Long.class);
-        if(version == null){
-            redisService.setObject(key, 1L);
-            return 1L;
-        }
-        return version;
+
+        redisService.setIfAbsent(key, 1L);
+
+        return redisService.getObject(key, Long.class);
     }
 
     /**
-     * 获取默认排序版本号
+     * 获取默认排序版本号 此处需保证操作setIfAbsent原子性
      */
     private Long getArticlePageDefaultVersion(){
         String key = DEFAULT_ARTICLE_LIST_VERSION_KEY + "version";
-        Long version = redisService.getObject(key, Long.class);
-        if(version == null) {
-            redisService.setObject(key, 1L);
-            return 1L;
-        }
-        return version;
+
+        redisService.setIfAbsent(key, 1L);
+
+        return redisService.getObject(key, Long.class);
     }
 
     public PageResult getArticleList(int page, int size) {
