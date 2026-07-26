@@ -31,8 +31,9 @@
             article_title AS articleTitle,
             article_abstract AS articleAbstract,
             article_date AS articleDate,
-<!--        article_cover AS articleCover-->
-            view_count AS viewCount
+            article_cover AS articleCover,
+            view_count AS viewCount,
+            cover_object_key AS coverURL
         FROM blog_article
         ${ew.customSqlSegment}
 

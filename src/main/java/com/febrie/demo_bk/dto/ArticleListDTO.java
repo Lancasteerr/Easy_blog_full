@@ -18,5 +18,10 @@ public class ArticleListDTO {
 
     private Long viewCount;
 
-    //private String articleCover;
+    /**
+     * fileObject id
+     */
+    private Long articleCover;
+
+    private String coverURL;
 }

@@ -94,7 +94,7 @@ public class RedisService {
         Boolean result = redisTemplate.opsForValue()
                 .setIfAbsent(key, value);
 
-        return result.equals(Boolean.TRUE);
+        return Boolean.TRUE.equals(result);
     }
 
     /**

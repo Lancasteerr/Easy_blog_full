@@ -248,6 +248,20 @@ public class BlogArticleService {
                     queryWrapper
             );
 
+            result.getRecords().forEach(
+                    articleListDTO -> {
+                        //url短暂存入objectKey
+                        String objectKey = articleListDTO.getCoverURL();
+
+                        if(objectKey == null || objectKey.isBlank()){
+                            articleListDTO.setCoverURL(null);
+                            return;
+                        }
+
+                        articleListDTO.setCoverURL(fileService.getUrl(objectKey));
+
+                    }
+            );
 
             pageResult = PageResult.from(result);
             //加入新缓存 按列表类型设置缓存TTL

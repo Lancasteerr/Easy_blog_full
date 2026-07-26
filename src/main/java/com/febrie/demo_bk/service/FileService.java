@@ -8,6 +8,7 @@ import com.febrie.demo_bk.pojo.FileUploadResult;
 import com.febrie.demo_bk.service.storage.FileStorageService;
 import com.febrie.demo_bk.util.FileUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,12 +25,15 @@ public class FileService {
 
     private final FileObjectMapper fileMapper;
 
+    @Value("${storage.type}")
+    private String storageType;
+
     public FileDTO upload(MultipartFile file)
             throws IOException {
         String suffix =
                 FileUtil.getSuffix(file);
 
-
+        String uuid = String.valueOf(UUID.randomUUID());
 
         String objectKey =
                 "article/"
@@ -38,7 +42,7 @@ public class FileService {
                         +
                         "/"
                         +
-                        UUID.randomUUID()
+                        uuid
                         +
                         suffix;
 
@@ -96,7 +100,7 @@ public class FileService {
 
 
         object.setFileName(
-                UUID.randomUUID()+suffix
+                uuid + suffix
         );
 
 
@@ -116,7 +120,7 @@ public class FileService {
 
 
         object.setStorageType(
-                "LOCAL"
+                storageType
         );
 
 
@@ -180,6 +184,15 @@ public class FileService {
 
         //删除数据库记录
         fileMapper.deleteById(id);
+
+    }
+
+    /**
+     * 将objectKey拼接为url
+     */
+    public String getUrl(String objectKey){
+
+        return storageService.getUrl(objectKey);
 
     }
 
