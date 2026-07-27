@@ -8,8 +8,13 @@ import { useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 
 const fileInput = ref(null);
+const coverFileInput = ref(null);
 const contentImageIds = ref(new Set());
+const boundImageIds = ref(new Set());
 const sessionUploadedImages = ref(new Map());
+// 记录本次会话新上传但尚未保存绑定的封面，离开页面时需要清理临时文件。
+const sessionUploadedCoverId = ref(null);
+const coverUploading = ref(false);
 const route = useRoute();
 
 const article = reactive({
@@ -19,6 +24,8 @@ const article = reactive({
   articleContentHtml: "",
   articleContentJson: null,
   articleDate: "",
+  articleCover: null,
+  coverObjectUrl: "",
 });
 
 const ImageWithFileId = Image.extend({
@@ -80,14 +87,28 @@ const deleteImageById = async id => {
   }
 };
 
+const uploadImageFile = async file => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await request.post("/admin/files/upload", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return res.data;
+};
+
 const deleteRemovedImages = async currentImages => {
   const currentIds = currentImages.ids;
   const currentSrcs = currentImages.srcs;
   const removedIds = [
     ...new Set([
-      ...[...contentImageIds.value].filter(id => !currentIds.has(id)),
       ...[...sessionUploadedImages.value.entries()]
-        .filter(([id, src]) => !currentIds.has(id) && !currentSrcs.has(src))
+        .filter(([id, src]) =>
+          !boundImageIds.value.has(id) && !currentIds.has(id) && !currentSrcs.has(src)
+        )
         .map(([id]) => id),
     ]),
   ];
@@ -138,6 +159,7 @@ const setEditorContent = content => {
   }
 
   contentImageIds.value = collectImages(editor.value.getJSON()).ids;
+  boundImageIds.value = new Set(contentImageIds.value);
 };
 
 const parseJsonContent = value => {
@@ -167,6 +189,8 @@ const loadArticle = async id => {
   article.articleAbstract = res.data.articleAbstract || "";
   article.articleContentHtml = res.data.articleContentHtml || "";
   article.articleContentJson = parseJsonContent(res.data.articleContentJson);
+  article.articleCover = res.data.articleCover ?? null;
+  article.coverObjectUrl = res.data.coverObjectUrl || res.data.coverURL || "";
 
   await nextTick();
   setEditorContent(article.articleContentJson || article.articleContentHtml || "<p></p>");
@@ -174,6 +198,59 @@ const loadArticle = async id => {
 
 const chooseImage = () => {
   fileInput.value?.click();
+};
+
+const chooseCover = () => {
+  coverFileInput.value?.click();
+};
+
+const clearSessionCover = async () => {
+  if (!sessionUploadedCoverId.value) return;
+
+  await deleteImageById(sessionUploadedCoverId.value);
+  sessionUploadedCoverId.value = null;
+};
+
+const uploadCover = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    ElMessage.warning("请选择图片文件");
+    return;
+  }
+
+  const previousSessionCoverId = sessionUploadedCoverId.value;
+  coverUploading.value = true;
+
+  try {
+    const image = await uploadImageFile(file);
+    const fileId = String(image.id);
+
+    // 新封面上传成功后再清理上一张临时封面，避免上传失败时丢失当前预览。
+    if (previousSessionCoverId && previousSessionCoverId !== fileId) {
+      await deleteImageById(previousSessionCoverId);
+    }
+
+    article.articleCover = fileId;
+    article.coverObjectUrl = image.url;
+    sessionUploadedCoverId.value = fileId;
+    ElMessage.success("封面上传成功");
+  } catch (error) {
+    console.error("Upload cover failed:", error);
+    ElMessage.error("封面上传失败");
+  } finally {
+    coverUploading.value = false;
+  }
+};
+
+const removeArticleCover = async () => {
+  // 只主动删除本次会话上传的临时封面；已保存的旧封面交给后端在保存文章时释放。
+  await clearSessionCover();
+  article.articleCover = null;
+  article.coverObjectUrl = "";
 };
 
 const uploadImage = async event => {
@@ -187,17 +264,8 @@ const uploadImage = async event => {
     return;
   }
 
-  const formData = new FormData();
-  formData.append("file", file);
-
   try {
-    const res = await request.post("/admin/files/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    const image = res.data;
+    const image = await uploadImageFile(file);
     const fileId = String(image.id);
     sessionUploadedImages.value.set(fileId, image.url);
 
@@ -279,12 +347,17 @@ const saveArticles = async () => {
       articleContentJson: JSON.stringify(editor.value.getJSON()),
       articleAbstract: article.articleAbstract,
       articleDate: article.articleDate,
+      // 保存封面文件ID；为空时表示文章不设置封面。
+      articleCover: article.articleCover ?? null,
     });
 
     if (response && response.status === 200) {
       ElMessage.success("保存成功");
       contentImageIds.value = collectImages(editor.value.getJSON()).ids;
+      boundImageIds.value = new Set(contentImageIds.value);
       sessionUploadedImages.value.clear();
+      // 保存成功后封面已由后端标记为已绑定，前端不再按临时文件清理。
+      sessionUploadedCoverId.value = null;
     }
   } catch (error) {
     if (error !== "cancel") {
@@ -309,6 +382,7 @@ onBeforeUnmount(() => {
   sessionUploadedImages.value.forEach((src, id) => {
     deleteImageById(id);
   });
+  clearSessionCover();
   editor.value?.destroy();
 });
 </script>
@@ -317,6 +391,39 @@ onBeforeUnmount(() => {
   <div class="editor">
     <el-input v-model="article.articleTitle" class="article-input" placeholder="请输入文章标题" />
     <el-input v-model="article.articleAbstract" class="article-input" placeholder="请输入文章概要" />
+
+    <section class="cover-uploader">
+      <div class="cover-preview" :class="{ empty: !article.coverObjectUrl }">
+        <img v-if="article.coverObjectUrl" :src="article.coverObjectUrl" alt="文章封面预览" />
+        <span v-else>暂无封面</span>
+      </div>
+
+      <div class="cover-actions">
+        <div class="cover-title">文章封面</div>
+        <div class="cover-buttons">
+          <el-button type="primary" plain :loading="coverUploading" @click="chooseCover">
+            {{ article.coverObjectUrl ? "更换封面" : "上传封面" }}
+          </el-button>
+          <el-button
+            v-if="article.coverObjectUrl"
+            type="danger"
+            plain
+            :disabled="coverUploading"
+            @click="removeArticleCover"
+          >
+            移除封面
+          </el-button>
+        </div>
+      </div>
+
+      <input
+        ref="coverFileInput"
+        class="file-input"
+        type="file"
+        accept="image/*"
+        @change="uploadCover"
+      />
+    </section>
 
     <section class="simple-editor">
       <header class="simple-editor-toolbar" v-if="editor">
@@ -498,6 +605,61 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
 }
 
+.cover-uploader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.cover-preview {
+  width: 180px;
+  height: 96px;
+  flex: 0 0 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px dashed #c8cdd6;
+  border-radius: 6px;
+  background: #f7f8fa;
+  color: #909399;
+  font-size: 14px;
+}
+
+.cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-preview.empty {
+  background: #fafafa;
+}
+
+.cover-actions {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cover-title {
+  color: #303133;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cover-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .simple-editor {
   min-height: 0;
   flex: 1;
@@ -610,5 +772,19 @@ onBeforeUnmount(() => {
 :deep(.ProseMirror img) {
   max-width: 100%;
   border-radius: 6px;
+}
+
+@media (max-width: 640px) {
+  .cover-uploader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cover-preview {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    flex-basis: auto;
+  }
 }
 </style>
