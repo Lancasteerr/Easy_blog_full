@@ -225,7 +225,7 @@ public class FileService {
         }
 
         List<FileObject> objects =
-                fileMapper.selectBatchIds(ids);
+                fileMapper.selectByIds(ids);
 
         Map<Long, FileObject> objectMap =
                 objects.stream()
@@ -260,7 +260,7 @@ public class FileService {
         }
 
         List<FileObject> objects =
-                fileMapper.selectBatchIds(ids);
+                fileMapper.selectByIds(ids);
 
         objects.stream()
                 .filter(object ->
