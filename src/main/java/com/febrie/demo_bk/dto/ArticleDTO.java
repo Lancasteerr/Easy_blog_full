@@ -24,7 +24,5 @@ public class ArticleDTO {
 
     private Long articleCover;
 
-    private String coverObjectKey;
-
     private String coverObjectUrl;
 }

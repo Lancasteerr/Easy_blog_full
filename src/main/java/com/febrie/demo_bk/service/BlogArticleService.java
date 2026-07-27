@@ -143,7 +143,6 @@ public class BlogArticleService {
                 articleDTO.getArticleCover();
 
         if (coverId == null) {
-            articleDTO.setCoverObjectKey(null);
             articleDTO.setCoverObjectUrl(null);
             return;
         }
@@ -151,9 +150,6 @@ public class BlogArticleService {
         FileObject coverObject =
                 fileService.getImageObject(coverId);
 
-        articleDTO.setCoverObjectKey(
-                coverObject.getObjectKey()
-        );
         articleDTO.setCoverObjectUrl(
                 coverObject.getUrl()
         );
