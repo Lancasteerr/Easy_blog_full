@@ -21,4 +21,8 @@ public class ArticleDTO {
     private LocalDateTime articleDate;
 
     private Long viewCount;
+
+    private Long articleCover;
+
+    private String coverObjectKey;
 }
