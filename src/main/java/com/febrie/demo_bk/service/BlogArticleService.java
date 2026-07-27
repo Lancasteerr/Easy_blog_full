@@ -10,11 +10,14 @@ import com.febrie.demo_bk.dao.BlogArticleDAO;
 import com.febrie.demo_bk.dto.ArticleDTO;
 import com.febrie.demo_bk.dto.ArticleListDTO;
 import com.febrie.demo_bk.pojo.BlogArticle;
+import com.febrie.demo_bk.pojo.FileObject;
 import com.febrie.demo_bk.result.PageResult;
 import com.febrie.demo_bk.service.pv.ArticleViewServiceImpl;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -58,11 +61,25 @@ public class BlogArticleService {
      * 先改数据库，再删Redis
      */
     //@OperationLoger(module = "文章",type = "增加或修改")
+    @Transactional(rollbackFor = Exception.class)
     public void addOrUpdate(ArticleDTO articleDTO) {
         BlogArticle oldArticle = null;
         if (articleDTO.getId() != null) {
             oldArticle = blogArticleDAO.selectById(articleDTO.getId());
+            if (oldArticle == null) {
+                throw new IllegalArgumentException("文章不存在");
+            }
         }
+
+        setCoverObjectInfo(articleDTO);
+
+        Set<Long> oldFileIds =
+                collectArticleFileIds(oldArticle);
+
+        Set<Long> newFileIds =
+                collectArticleFileIds(articleDTO);
+
+        fileService.validateImageFiles(newFileIds);
 
         BlogArticle blogArticle = BlogArticle.toPojo(articleDTO);
         if(articleDTO.getId() == null) {
@@ -70,9 +87,11 @@ public class BlogArticleService {
             articleDTO.setId(blogArticle.getId());
         } else {
             blogArticleDAO.updateById(blogArticle);
-            deleteRemovedArticleImages(oldArticle, articleDTO);
             redisService.delete(ARTICLE_DETAIL_CACHE_KEY + articleDTO.getId());
         }
+
+        fileService.markBound(newFileIds);
+        releaseRemovedFiles(oldFileIds, newFileIds);
 
         //两种列表更新版本号
         redisService.ValueIncrease(DEFAULT_ARTICLE_LIST_VERSION_KEY + "version");
@@ -100,36 +119,114 @@ public class BlogArticleService {
     }
 
     //删除文章
+    @Transactional(rollbackFor = Exception.class)
     public void delete(int id) {
         BlogArticle article = blogArticleDAO.selectById(id);
+        Set<Long> articleFileIds =
+                collectArticleFileIds(article);
+
         blogArticleDAO.deleteById(id);
-        deleteArticleImages(article);
+        fileService.markTemp(articleFileIds);
+        deleteTempFilesAfterCommit(articleFileIds);
         redisService.delete(ARTICLE_DETAIL_CACHE_KEY + id);
         //所有页面缓存失效
         redisService.ValueIncrease(DEFAULT_ARTICLE_LIST_VERSION_KEY + "version");
         redisService.ValueIncrease(PV_DESC_ARTICLE_LIST_VERSION_KEY + "version");
     }
 
-    private void deleteRemovedArticleImages(BlogArticle oldArticle, ArticleDTO newArticle) {
-        Set<Long> oldImageIds = collectImageIds(
-                oldArticle == null ? null : oldArticle.getArticleContentJson(),
-                oldArticle == null ? null : oldArticle.getArticleContentHtml()
-        );
-        Set<Long> newImageIds = collectImageIds(
-                newArticle == null ? null : newArticle.getArticleContentJson(),
-                newArticle == null ? null : newArticle.getArticleContentHtml()
-        );
+    private void setCoverObjectInfo(ArticleDTO articleDTO) {
+        if (articleDTO == null) {
+            return;
+        }
 
-        oldImageIds.removeAll(newImageIds);
-        oldImageIds.forEach(fileService::delete);
+        Long coverId =
+                articleDTO.getArticleCover();
+
+        if (coverId == null) {
+            articleDTO.setCoverObjectKey(null);
+            articleDTO.setCoverObjectUrl(null);
+            return;
+        }
+
+        FileObject coverObject =
+                fileService.getImageObject(coverId);
+
+        articleDTO.setCoverObjectKey(
+                coverObject.getObjectKey()
+        );
+        articleDTO.setCoverObjectUrl(
+                coverObject.getUrl()
+        );
     }
 
-    private void deleteArticleImages(BlogArticle article) {
-        collectImageIds(
-                article == null ? null : article.getArticleContentJson(),
-                article == null ? null : article.getArticleContentHtml()
-        )
-                .forEach(fileService::delete);
+    private Set<Long> collectArticleFileIds(BlogArticle article) {
+        if (article == null) {
+            return new HashSet<>();
+        }
+
+        Set<Long> fileIds =
+                collectImageIds(
+                        article.getArticleContentJson(),
+                        article.getArticleContentHtml()
+                );
+
+        if (article.getArticleCover() != null) {
+            fileIds.add(article.getArticleCover());
+        }
+
+        return fileIds;
+    }
+
+    private Set<Long> collectArticleFileIds(ArticleDTO article) {
+        if (article == null) {
+            return new HashSet<>();
+        }
+
+        Set<Long> fileIds =
+                collectImageIds(
+                        article.getArticleContentJson(),
+                        article.getArticleContentHtml()
+                );
+
+        if (article.getArticleCover() != null) {
+            fileIds.add(article.getArticleCover());
+        }
+
+        return fileIds;
+    }
+
+    private void releaseRemovedFiles(Set<Long> oldFileIds,
+                                     Set<Long> newFileIds) {
+        if (oldFileIds == null || oldFileIds.isEmpty()) {
+            return;
+        }
+
+        oldFileIds.removeAll(newFileIds);
+        fileService.markTemp(oldFileIds);
+        deleteTempFilesAfterCommit(oldFileIds);
+    }
+
+    private void deleteTempFilesAfterCommit(Set<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return;
+        }
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            fileService.deleteTempFiles(fileIds);
+            return;
+        }
+
+        Set<Long> idsToDelete =
+                new HashSet<>(fileIds);
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        fileService.deleteTempFiles(idsToDelete);
+                    }
+                }
+        );
     }
 
     private Set<Long> collectImageIds(String articleContentJson, String articleContentHtml) {

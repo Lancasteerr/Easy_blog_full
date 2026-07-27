@@ -32,6 +32,8 @@ public class BlogArticle {
 
     private String coverObjectKey;
 
+    private String coverObjectUrl;
+
     public static ArticleDTO toDTO(BlogArticle blogArticle) {
         if (blogArticle == null) return null;
 
@@ -46,6 +48,7 @@ public class BlogArticle {
         articleDTO.setViewCount(blogArticle.getViewCount());
         articleDTO.setArticleCover(blogArticle.articleCover);
         articleDTO.setCoverObjectKey(blogArticle.getCoverObjectKey());
+        articleDTO.setCoverObjectUrl(blogArticle.getCoverObjectUrl());
 
         return articleDTO;
     }
@@ -64,6 +67,7 @@ public class BlogArticle {
         blogArticle.setViewCount(articleDTO.getViewCount());
         blogArticle.setArticleCover(articleDTO.getArticleCover());
         blogArticle.setCoverObjectKey(articleDTO.getCoverObjectKey());
+        blogArticle.setCoverObjectUrl(articleDTO.getCoverObjectUrl());
 
         return blogArticle;
     }

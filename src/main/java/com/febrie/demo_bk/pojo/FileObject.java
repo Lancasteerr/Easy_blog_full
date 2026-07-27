@@ -39,7 +39,11 @@ public class FileObject {
 
     private String url;
 
+    private Integer status;
+
 
     private LocalDateTime createdTime;
+
+    private LocalDateTime updatedTime;
 
 }
