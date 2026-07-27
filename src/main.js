@@ -8,6 +8,7 @@ import 'element-plus/dist/index.css'
 
 import './assets/fonts/font.css'
 import './assets/markdown.css'
+import './assets/scrollbar.css'
 
 // 创建应用实例
 const app = createApp(App)

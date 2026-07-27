@@ -72,12 +72,14 @@ export default {
           <div class="ContactMeStitle">{{ card.subtitle }}</div>
         </div>
       </div>
-      <div class="ContactMecontext" @pointerdown.stop>
-        <p v-for="(paragraph, index) in card.paragraphs" :key="index">{{ paragraph }}</p>
-        <ul v-if="card.items && card.items.length" class="ContactMeList">
-          <li v-for="(item, index) in card.items" :key="index">{{ item }}</li>
-        </ul>
-      </div>
+      <el-scrollbar class="ContactMecontext" @pointerdown.stop>
+        <div class="ContactMecontextInner">
+          <p v-for="(paragraph, index) in card.paragraphs" :key="index">{{ paragraph }}</p>
+          <ul v-if="card.items && card.items.length" class="ContactMeList">
+            <li v-for="(item, index) in card.items" :key="index">{{ item }}</li>
+          </ul>
+        </div>
+      </el-scrollbar>
     </div>
   </div>
 </template>
@@ -124,10 +126,9 @@ export default {
 .ContactMecontext{
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(120,120,120,.85) transparent;
   cursor: auto;
+}
+.ContactMecontextInner{
   color: #ffffff;
   box-sizing: border-box;
   padding: 0 15px 15px;
@@ -135,33 +136,11 @@ export default {
   font-size: 13px;
   font-family: Source Han Sans Regular , sans-serif;
 }
-.ContactMecontext p{
+.ContactMecontextInner p{
   margin: 0 0 7px;
 }
-.ContactMecontext p:last-child{
+.ContactMecontextInner p:last-child{
   margin-bottom: 0;
-}
-.ContactMecontext::-webkit-scrollbar{
-  width: 4px;
-}
-.ContactMecontext::-webkit-scrollbar-track{
-  border: 0;
-  background: transparent;
-}
-.ContactMecontext::-webkit-scrollbar-thumb{
-  border: 0;
-  border-radius: 0;
-  background-color: rgba(120,120,120,.85);
-}
-.ContactMecontext::-webkit-scrollbar-thumb:hover{
-  background-color: rgba(150,150,150,.95);
-}
-.ContactMecontext::-webkit-scrollbar-button,
-.ContactMecontext::-webkit-scrollbar-corner{
-  display: none;
-  width: 0;
-  height: 0;
-  background: transparent;
 }
 .ContactMeList{
   margin: 0;

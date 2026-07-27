@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import request from "@/utils/request";
 
@@ -12,6 +12,7 @@ const ArticleDate = ref("");
 
 // 阅读进度条
 const scrollProgress = ref(0);
+let scrollContainer = null;
 
 // 加载文章
 const loadArticle = async () => {
@@ -30,14 +31,25 @@ const loadArticle = async () => {
 
 // 更新阅读进度条
 const updateProgress = () => {
-  const scrollTop = window.scrollY;
-  const docHeight = document.body.scrollHeight - window.innerHeight;
-  scrollProgress.value = (scrollTop / docHeight) * 100;
+  const container = scrollContainer || document.documentElement;
+  const scrollTop = container.scrollTop || 0;
+  const docHeight = container.scrollHeight - container.clientHeight;
+
+  scrollProgress.value = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
 };
 
-onMounted(() => {
-  loadArticle();
-  window.addEventListener("scroll", updateProgress);
+onMounted(async () => {
+  await loadArticle();
+  await nextTick();
+
+  // 主页面滚动已交给 App.vue 中的 el-scrollbar，这里监听它的真实滚动容器。
+  scrollContainer = document.querySelector(".app-scrollbar .el-scrollbar__wrap");
+  scrollContainer?.addEventListener("scroll", updateProgress, { passive: true });
+  updateProgress();
+});
+
+onBeforeUnmount(() => {
+  scrollContainer?.removeEventListener("scroll", updateProgress);
 });
 </script>
 

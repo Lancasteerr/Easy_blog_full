@@ -73,12 +73,14 @@ export default {
         </div>
         <img src="@/assets/AboutMeitem.png" alt="">
       </div>
-      <div class="AboutMecontext" @pointerdown.stop>
-        <p v-for="(paragraph, index) in card.paragraphs" :key="index">{{ paragraph }}</p>
-        <ul v-if="card.items && card.items.length" class="AboutMeList">
-          <li v-for="(item, index) in card.items" :key="index">{{ item }}</li>
-        </ul>
-      </div>
+      <el-scrollbar class="AboutMecontext" @pointerdown.stop>
+        <div class="AboutMecontextInner">
+          <p v-for="(paragraph, index) in card.paragraphs" :key="index">{{ paragraph }}</p>
+          <ul v-if="card.items && card.items.length" class="AboutMeList">
+            <li v-for="(item, index) in card.items" :key="index">{{ item }}</li>
+          </ul>
+        </div>
+      </el-scrollbar>
     </div>
   </div>
 </template>
@@ -124,10 +126,9 @@ export default {
 .AboutMecontext{
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(120,120,120,.85) transparent;
   cursor: auto;
+}
+.AboutMecontextInner{
   color: #ffffff;
   box-sizing: border-box;
   padding: 0 15px 15px;
@@ -135,33 +136,11 @@ export default {
   font-size: 13px;
   font-family: Source Han Sans Regular , sans-serif;
 }
-.AboutMecontext p{
+.AboutMecontextInner p{
   margin: 0 0 7px;
 }
-.AboutMecontext p:last-child{
+.AboutMecontextInner p:last-child{
   margin-bottom: 0;
-}
-.AboutMecontext::-webkit-scrollbar{
-  width: 4px;
-}
-.AboutMecontext::-webkit-scrollbar-track{
-  border: 0;
-  background: transparent;
-}
-.AboutMecontext::-webkit-scrollbar-thumb{
-  border: 0;
-  border-radius: 0;
-  background-color: rgba(120,120,120,.85);
-}
-.AboutMecontext::-webkit-scrollbar-thumb:hover{
-  background-color: rgba(150,150,150,.95);
-}
-.AboutMecontext::-webkit-scrollbar-button,
-.AboutMecontext::-webkit-scrollbar-corner{
-  display: none;
-  width: 0;
-  height: 0;
-  background: transparent;
 }
 .AboutMeList{
   margin: 0;

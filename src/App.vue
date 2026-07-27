@@ -1,49 +1,19 @@
 <template>
   <div id="app">
-    <router-view></router-view>
+    <el-scrollbar class="app-scrollbar" view-class="app-scrollbar-view">
+      <router-view></router-view>
+    </el-scrollbar>
   </div>
 </template>
 
 <style lang="scss">
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(120, 120, 120, 0.85) transparent;
-}
-
-*::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-*::-webkit-scrollbar-thumb {
-  border: 0;
-  border-radius: 0;
-  background: rgba(120, 120, 120, 0.85);
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(150, 150, 150, 0.95);
-}
-
-*::-webkit-scrollbar-track {
-  border: 0;
-  background-color: transparent;
-}
-
-*::-webkit-scrollbar-button,
-*::-webkit-scrollbar-corner {
-  display: none;
-  width: 0;
-  height: 0;
-  border: 0;
-  background: transparent;
-}
-
 #app {
+  width: 100%;
+  height: 100%;
   margin-top: 0;
 }
 
-body{
+body {
   margin: 0;
 }
 </style>

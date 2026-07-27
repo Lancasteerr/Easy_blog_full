@@ -584,9 +584,9 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <div class="editor-content-scroll">
+      <el-scrollbar class="editor-content-scroll">
         <EditorContent :editor="editor" />
-      </div>
+      </el-scrollbar>
     </section>
   </div>
 </template>
@@ -689,7 +689,10 @@ onBeforeUnmount(() => {
 .editor-content-scroll {
   min-height: 0;
   flex: 1;
-  overflow-y: auto;
+}
+
+.editor-content-scroll :deep(.el-scrollbar__view) {
+  min-height: 100%;
 }
 
 .toolbar-group {

@@ -72,12 +72,14 @@ export default {
           <div class="WorkExpStitle">{{ card.subtitle }}</div>
         </div>
       </div>
-      <div class="WorkExpcontext" @pointerdown.stop>
-        <p v-for="(paragraph, index) in card.paragraphs" :key="index">{{ paragraph }}</p>
-        <ul v-if="card.items && card.items.length" class="WorkExpList">
-          <li v-for="(item, index) in card.items" :key="index">{{ item }}</li>
-        </ul>
-      </div>
+      <el-scrollbar class="WorkExpcontext" @pointerdown.stop>
+        <div class="WorkExpcontextInner">
+          <p v-for="(paragraph, index) in card.paragraphs" :key="index">{{ paragraph }}</p>
+          <ul v-if="card.items && card.items.length" class="WorkExpList">
+            <li v-for="(item, index) in card.items" :key="index">{{ item }}</li>
+          </ul>
+        </div>
+      </el-scrollbar>
     </div>
   </div>
 </template>
@@ -124,10 +126,9 @@ export default {
 .WorkExpcontext{
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(120,120,120,.85) transparent;
   cursor: auto;
+}
+.WorkExpcontextInner{
   color: #ffffff;
   box-sizing: border-box;
   padding: 0 15px 15px;
@@ -135,33 +136,11 @@ export default {
   font-size: 13px;
   font-family: Source Han Sans Regular , sans-serif;
 }
-.WorkExpcontext p{
+.WorkExpcontextInner p{
   margin: 0 0 7px;
 }
-.WorkExpcontext p:last-child{
+.WorkExpcontextInner p:last-child{
   margin-bottom: 0;
-}
-.WorkExpcontext::-webkit-scrollbar{
-  width: 4px;
-}
-.WorkExpcontext::-webkit-scrollbar-track{
-  border: 0;
-  background: transparent;
-}
-.WorkExpcontext::-webkit-scrollbar-thumb{
-  border: 0;
-  border-radius: 0;
-  background-color: rgba(120,120,120,.85);
-}
-.WorkExpcontext::-webkit-scrollbar-thumb:hover{
-  background-color: rgba(150,150,150,.95);
-}
-.WorkExpcontext::-webkit-scrollbar-button,
-.WorkExpcontext::-webkit-scrollbar-corner{
-  display: none;
-  width: 0;
-  height: 0;
-  background: transparent;
 }
 .WorkExpList{
   margin: 0;
