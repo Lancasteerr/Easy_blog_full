@@ -250,16 +250,10 @@ public class BlogArticleService {
 
             result.getRecords().forEach(
                     articleListDTO -> {
-                        //url短暂存入objectKey
-                        String objectKey = articleListDTO.getCoverURL();
-
-                        if(objectKey == null || objectKey.isBlank()){
+                        String coverURL = articleListDTO.getCoverURL();
+                        if(coverURL == null || coverURL.isBlank()){
                             articleListDTO.setCoverURL(null);
-                            return;
                         }
-
-                        articleListDTO.setCoverURL(fileService.getUrl(objectKey));
-
                     }
             );
 
