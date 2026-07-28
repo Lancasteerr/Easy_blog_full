@@ -1,7 +1,6 @@
 <script setup>
 
 import router from "@/router";
-import store from "@/store";
 
 const goTohomepage = () =>{
   router.push('/');
@@ -12,7 +11,6 @@ const goBack = () =>{
 
 const logout = () =>{
   localStorage.removeItem("token");
-  store.commit('logout');
   router.push({name:'MyHome'});
 }
 

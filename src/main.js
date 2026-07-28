@@ -1,14 +1,53 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import store from './store'
 import request from './utils/request'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
+import {
+    ElButton,
+    ElCard,
+    ElCarousel,
+    ElCarouselItem,
+    ElForm,
+    ElFormItem,
+    ElHeader,
+    ElIcon,
+    ElInput,
+    ElPagination,
+    ElScrollbar,
+} from 'element-plus'
+import 'element-plus/theme-chalk/base.css'
+import 'element-plus/theme-chalk/el-button.css'
+import 'element-plus/theme-chalk/el-card.css'
+import 'element-plus/theme-chalk/el-carousel.css'
+import 'element-plus/theme-chalk/el-carousel-item.css'
+import 'element-plus/theme-chalk/el-form.css'
+import 'element-plus/theme-chalk/el-form-item.css'
+import 'element-plus/theme-chalk/el-header.css'
+import 'element-plus/theme-chalk/el-icon.css'
+import 'element-plus/theme-chalk/el-input.css'
+import 'element-plus/theme-chalk/el-pagination.css'
+import 'element-plus/theme-chalk/el-scrollbar.css'
+import 'element-plus/theme-chalk/el-message.css'
+import 'element-plus/theme-chalk/el-message-box.css'
+import 'element-plus/theme-chalk/el-overlay.css'
 
 import './assets/fonts/font.css'
 import './assets/markdown.css'
 import './assets/scrollbar.css'
+
+const elementPlusComponents = [
+    ElButton,
+    ElCard,
+    ElCarousel,
+    ElCarouselItem,
+    ElForm,
+    ElFormItem,
+    ElHeader,
+    ElIcon,
+    ElInput,
+    ElPagination,
+    ElScrollbar,
+]
 
 // 创建应用实例
 const app = createApp(App)
@@ -16,11 +55,10 @@ const app = createApp(App)
 // 全局注册 axios
 app.config.globalProperties.$axios = request
 
-// 使用 ElementPlus
-app.use(ElementPlus)
-
-// 使用 Vuex 状态管理
-app.use(store)
+// 只注册当前模板实际使用的 Element Plus 组件，降低生产包体积。
+elementPlusComponents.forEach(component => {
+    app.component(component.name, component)
+})
 
 // 使用 Vue Router
 app.use(router)  // 在此时使用 router

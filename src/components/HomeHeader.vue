@@ -1,27 +1,10 @@
-<script setup>
-
-import router from "@/router";
-
-const goToLoginpage = () => {
-  router.push('/neko-panel/login')
-}
-
-const goToRegisterpage = () => {
-  router.push('/register')
-}
-</script>
-
 <template>
   <el-header class="header">
     <div id="header-div">
       <div id="logo">
         <img src="../assets/nekoicon.png" alt="Logo">
       </div>
-        <div class="butten-container">
-          <el-button class="Loginbutton" link @click="goToLoginpage">登录</el-button>
-          <div class="separator"></div>
-          <el-button class="Register" link @click="goToRegisterpage">注册</el-button>
-        </div>
+      <!-- 首页已移除登录和注册入口，仅保留站点 Logo。 -->
     </div>
   </el-header>
 </template>
@@ -46,28 +29,4 @@ const goToRegisterpage = () => {
   padding: 0;
 }
 
-.butten-container{
-  display: flex;
-  align-items: center;
-}
-.separator{
-  width: 2px;
-  height: 18px;
-  background-color: #ffffff;
-  margin: 0 13px;
-}
-
-.Loginbutton,
-.Register{
-  font-size: 16px;
-  color: #ffffff;
-  --el-button-text-color: #ffffff;
-  --el-button-hover-text-color: #ffffff;
-  --el-button-active-text-color: #ffffff;
-}
-
-.Loginbutton :deep(span),
-.Register :deep(span){
-  color: #ffffff;
-}
 </style>

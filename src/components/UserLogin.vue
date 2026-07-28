@@ -1,12 +1,10 @@
 <script setup>
 import { reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { useStore } from 'vuex';
 import request from '@/utils/request';
 
-// 使用组合式API的方式获取router和store
+// 使用组合式API的方式获取router
 const router = useRouter();
-const store = useStore();
 
 // 定义响应式的loginForm
 const loginForm = reactive({
@@ -17,18 +15,13 @@ const loginForm = reactive({
 // 处理账号密码登录
 const login = async () => {
   try {
-    console.log(store.state);
-
     const response = await request.post('/public/login', {
       userName: loginForm.userName,
       password: loginForm.password
     });
 
     if (response.data.code === 200) {
-      // 利用store的commit调用login方法更新状态
-      // store.commit('login', loginForm);
       localStorage.setItem("token",response.data.token)
-      console.log(store.state);
 
       // 获取来源的URL，默认跳转到 /neko-panel/manage 页面
       const path = router.currentRoute.value.query.redirect;

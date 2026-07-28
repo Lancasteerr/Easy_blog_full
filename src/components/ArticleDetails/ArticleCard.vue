@@ -1,13 +1,21 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import DOMPurify from "dompurify";
 import { getAppScrollContainer } from "@/utils/appScroll";
 
-defineProps({
+const props = defineProps({
   articleHtml: {
     type: String,
     default: ""
   }
 });
+
+// 文章 HTML 来自后端，渲染前先做白名单清洗，降低 XSS 风险。
+const safeArticleHtml = computed(() =>
+  DOMPurify.sanitize(props.articleHtml, {
+    USE_PROFILES: { html: true },
+  })
+);
 
 // 阅读进度条
 const scrollProgress = ref(0);
@@ -44,7 +52,7 @@ onBeforeUnmount(() => {
     <div class="article-container">
       <el-card class="article-card">
         <!-- 正文 -->
-        <div class="markdown-body" v-html="articleHtml"></div>
+        <div class="markdown-body" v-html="safeArticleHtml"></div>
 
       </el-card>
     </div>
