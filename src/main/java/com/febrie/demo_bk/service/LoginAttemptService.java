@@ -27,7 +27,7 @@ public class LoginAttemptService {
                 "login:fail:user:" + username;
 
         String ipKey =
-                "login:fail:ip" + ip;
+                "login:fail:ip:" + ip;
 
         Integer userCount =
                 redisService.getObject(userKey, Integer.class);
