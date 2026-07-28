@@ -1,33 +1,16 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
-import request from "@/utils/request";
 
-const route = useRoute();
-
-// 数据
-const ArticleTitle = ref("");
-const ArticleHtml = ref("");
-const ArticleDate = ref("");
+defineProps({
+  articleHtml: {
+    type: String,
+    default: ""
+  }
+});
 
 // 阅读进度条
 const scrollProgress = ref(0);
 let scrollContainer = null;
-
-// 加载文章
-const loadArticle = async () => {
-  const id = route.params.id || route.query.id;
-
-  const res = await request.get("/public/article", {
-    params: { id }
-  });
-
-  const data = res.data;
-
-  ArticleTitle.value = data.articleTitle;
-  ArticleHtml.value = data.articleContentHtml;
-  ArticleDate.value = data.articleDate.split("T")[0]; // 只显示年月日
-};
 
 // 更新阅读进度条
 const updateProgress = () => {
@@ -39,7 +22,6 @@ const updateProgress = () => {
 };
 
 onMounted(async () => {
-  await loadArticle();
   await nextTick();
 
   // 主页面滚动已交给 App.vue 中的 el-scrollbar，这里监听它的真实滚动容器。
@@ -60,24 +42,8 @@ onBeforeUnmount(() => {
 
     <div class="article-container">
       <el-card class="article-card">
-
-<!--        &lt;!&ndash; 返回按钮 &ndash;&gt;-->
-<!--        <el-button type="primary" @click="router.back()" plain>-->
-<!--          返回-->
-<!--        </el-button>-->
-
-        <!-- 标题 -->
-        <h1 class="article-title">{{ ArticleTitle }}</h1>
-
-        <!-- 日期 -->
-        <div class="article-meta">
-          <el-divider content-position="left">
-            <span class="article-date">{{ ArticleDate }}</span>
-          </el-divider>
-        </div>
-
         <!-- 正文 -->
-        <div class="markdown-body" v-html="ArticleHtml"></div>
+        <div class="markdown-body" v-html="articleHtml"></div>
 
       </el-card>
     </div>
@@ -87,15 +53,22 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 /* 页面容器 */
 .article-container {
-  margin-top: 40px;
   display: flex;
   justify-content: center;
 }
 
 /* 卡片 */
 .article-card {
-  width: 900px;
-  padding: 40px;
+  width: min(900px, 100%);
+  background-color: rgba(18, 18, 18, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
+}
+
+.article-card :deep(.el-card__body) {
+  padding: 42px;
 }
 
 /* 阅读进度条 */
@@ -109,32 +82,75 @@ onBeforeUnmount(() => {
   transition: width 0.2s ease;
 }
 
-/* 标题样式 */
-.article-title {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 20px 0 10px 0;
-}
-
-/* 日期 */
-.article-meta {
-  margin-bottom: 25px;
-}
-
-.article-date {
-  font-size: 14px;
-  color: #777;
-}
-
 /* 正文排版美化 */
 .markdown-body {
   max-width: 760px;
   margin: 0 auto;
-  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.75;
+  font-family: "Source Han Sans Regular", sans-serif;
 }
 
-.markdown-body img {
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4),
+.markdown-body :deep(h5),
+.markdown-body :deep(h6) {
+  color: #ffffff;
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.markdown-body :deep(p),
+.markdown-body :deep(li) {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.markdown-body :deep(a) {
+  color: #7ccfff;
+}
+
+.markdown-body :deep(blockquote) {
+  color: rgba(255, 255, 255, 0.74);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-left-color: #4dbbff;
+  border-radius: 4px;
+}
+
+.markdown-body :deep(code) {
+  color: #f3f7fb;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.markdown-body :deep(pre) {
+  color: #d6deeb;
+  background-color: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.markdown-body :deep(table tr) {
+  background-color: #181818;
+  border-top-color: rgba(255, 255, 255, 0.14);
+}
+
+.markdown-body :deep(table tr:nth-child(2n)) {
+  background-color: #202020;
+}
+
+.markdown-body :deep(table th),
+.markdown-body :deep(table td) {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.markdown-body :deep(img) {
   max-width: 100%;
   border-radius: 6px;
+  background-color: transparent;
+}
+
+@media (max-width: 640px) {
+  .article-card :deep(.el-card__body) {
+    padding: 26px 20px;
+  }
 }
 </style>

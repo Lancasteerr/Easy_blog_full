@@ -1,89 +1,198 @@
 <script setup>
-
 import router from "@/router";
 
-const goTohomepage = () =>{
-  router.push('/');
-}
-const goBack = () =>{
-  router.go(-1)
-}
+defineProps({
+  articleTitle: {
+    type: String,
+    default: "未命名文章"
+  },
+  articleDate: {
+    type: String,
+    default: "未知日期"
+  },
+  coverUrl: {
+    type: String,
+    required: true
+  }
+});
 
+const goToHomepage = () => {
+  router.push("/");
+};
 </script>
 
-
 <template>
-  <div>
-    <el-header class="Manage-header">
-      <div class="Manage-header-container">
-        <div id="Manage-logo" style="width: 60%">
-          <img src="@/assets/nekoicon.png" alt="Logo">
-        </div>
-        <div class="Manage-header-items">
-          <div class="function-items">
-            <el-button class="to-homePage" link @click="goTohomepage">首页</el-button>
-            <el-button class="Manage-Article" link @click="goBack">返回</el-button>
-          </div>
-        </div>
-      </div>
+  <section class="article-hero">
+    <img class="hero-cover" :src="coverUrl" :alt="`${articleTitle || '文章'}封面`">
+    <div class="hero-mask"></div>
+
+    <el-header class="site-header">
+      <button class="site-brand" type="button" @click="goToHomepage">neko dev</button>
+
+      <nav class="site-nav" aria-label="文章详情导航">
+        <el-button class="nav-link" link @click="goToHomepage">首页</el-button>
+      </nav>
     </el-header>
-  </div>
+
+    <div class="hero-content">
+      <h1 class="hero-title">{{ articleTitle }}</h1>
+      <div class="hero-meta">
+        <span>更新于 {{ articleDate }}</span>
+        <span class="meta-divider">|</span>
+        <span>作者 Febrie</span>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.Manage-header-container{
-  box-sizing: border-box;
-  display: flex;
+.article-hero {
+  position: relative;
+  height: 420px;
+  min-height: 320px;
+  overflow: hidden;
+  background-color: #121212;
+}
+
+.hero-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transform: scale(1.06);
+  transform-origin: center;
+}
+
+.hero-mask {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(18, 18, 18, 0.44) 0%, rgba(18, 18, 18, 0.34) 48%, rgba(18, 18, 18, 0.88) 100%),
+    rgba(18, 18, 18, 0.14);
+}
+
+.site-header {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 10;
-  height: 80px;
+  z-index: 2;
   width: 100%;
-  padding: 0 20px;
-  background-color: rgba(0,0,0,0);
-  border-bottom: 1px solid hsla(0,0%,100%,.5);
-}
-#Manage-logo img{
-  height: 70px;
-  padding: 0;
-}
-.Manage-header-items{
-  height: 100%;
-  width: 40%;
+  height: 72px;
   display: flex;
-  justify-content: right;
-}
-.function-items{
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 56px;
   box-sizing: border-box;
-  height: 100%;
-  width: 85%;
-  display: flex;
-  justify-content: right;
-  align-items: center;
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.42) 0%, rgba(18, 18, 18, 0) 100%);
 }
-.account-items{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  width: 15%;
-}
-.to-homePage,
-.Manage-Article{
-  font-size: 20px;
+
+.site-brand {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #ffffff;
-  font-family: "Source Han Sans Bold" , sans-serif;
+  font-family: "Source Han Sans Bold", sans-serif;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.site-brand:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.72);
+  outline-offset: 4px;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+}
+
+.nav-link {
+  font-family: "Source Han Sans Bold", sans-serif;
+  font-size: 16px;
+  color: #ffffff;
   --el-button-text-color: #ffffff;
   --el-button-hover-text-color: #ffffff;
   --el-button-active-text-color: #ffffff;
 }
-.Manage-Article{
-  margin-left: 20px !important;
+
+.nav-link :deep(span) {
+  color: inherit;
 }
 
-.to-homePage :deep(span),
-.Manage-Article :deep(span){
+.hero-content {
+  position: absolute;
+  left: 50%;
+  bottom: 48px;
+  z-index: 2;
+  width: min(1180px, calc(100% - 80px));
+  transform: translateX(-50%);
   color: #ffffff;
+}
+
+.hero-title {
+  max-width: 920px;
+  margin: 0 0 14px;
+  color: #ffffff;
+  font-family: "Source Han Sans Bold", sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.3;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.58);
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  color: rgba(255, 255, 255, 0.82);
+  font-family: "Source Han Sans Regular", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.54);
+}
+
+.meta-divider {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 640px) {
+  .article-hero {
+    height: 340px;
+    min-height: 300px;
+  }
+
+  .site-header {
+    height: 64px;
+    padding: 0 20px;
+  }
+
+  .site-brand {
+    font-size: 20px;
+  }
+
+  .nav-link {
+    font-size: 15px;
+  }
+
+  .hero-content {
+    bottom: 34px;
+    width: calc(100% - 40px);
+  }
+
+  .hero-title {
+    font-size: 28px;
+  }
+
+  .hero-meta {
+    font-size: 13px;
+  }
 }
 </style>
