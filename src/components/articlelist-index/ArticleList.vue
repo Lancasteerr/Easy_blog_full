@@ -42,11 +42,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { nextTick, ref, onMounted } from "vue";
 import request from "@/utils/request";
 import {useRouter} from "vue-router";
 import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.jpg";
 import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.jpg";
+import { getAppScrollTop, setAppScrollTop } from "@/utils/appScroll";
 
 const router = useRouter();
 const articles = ref([]);
@@ -54,6 +55,48 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = ref(10);
 const fallbackCovers = [fallbackCoverOne, fallbackCoverTwo];
+const ARTICLE_LIST_SCROLL_STATE_KEY = "articleListScrollState";
+
+const waitForPagePaint = async () => {
+  await nextTick();
+
+  await new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+};
+
+const readSavedScrollState = () => {
+  const rawState = sessionStorage.getItem(ARTICLE_LIST_SCROLL_STATE_KEY);
+
+  if (!rawState) {
+    return null;
+  }
+
+  try {
+    const state = JSON.parse(rawState);
+    const savedPage = Number.parseInt(state.page, 10);
+    const savedScrollTop = Number(state.scrollTop);
+
+    return {
+      page: Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1,
+      scrollTop: Number.isFinite(savedScrollTop) ? Math.max(savedScrollTop, 0) : 0
+    };
+  } catch (error) {
+    sessionStorage.removeItem(ARTICLE_LIST_SCROLL_STATE_KEY);
+    return null;
+  }
+};
+
+const saveScrollState = () => {
+  // 点击文章前记录当前列表页和真实滚动容器位置，用于从详情页返回时恢复。
+  sessionStorage.setItem(
+    ARTICLE_LIST_SCROLL_STATE_KEY,
+    JSON.stringify({
+      page: page.value,
+      scrollTop: getAppScrollTop()
+    })
+  );
+};
 
 const loadArticles = async () => {
   try {
@@ -67,13 +110,15 @@ const loadArticles = async () => {
     const data = res.data;
     articles.value = data.content;
     total.value = data.totalElements;
-    page.value = data.number + 1;
+    // 后端 PageResult.number 已经是 Element Plus 分页需要的 1 起始页码。
+    page.value = data.number;
   }catch (error){
     console.error("Get article_list fail:",error);
   }
 };
 
 const jumpto = (id) =>{
+  saveScrollState();
   router.push({ path: '/article', query: { id: id } })
 }
 
@@ -110,7 +155,23 @@ const handlePageChange = (newPage) => {
   loadArticles();
 };
 
-onMounted(loadArticles);
+onMounted(async () => {
+  const savedScrollState = readSavedScrollState();
+
+  if (savedScrollState) {
+    page.value = savedScrollState.page;
+  }
+
+  await loadArticles();
+
+  if (!savedScrollState) {
+    return;
+  }
+
+  await waitForPagePaint();
+  setAppScrollTop(savedScrollState.scrollTop);
+  sessionStorage.removeItem(ARTICLE_LIST_SCROLL_STATE_KEY);
+});
 </script>
 
 <style scoped>

@@ -1,5 +1,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { getAppScrollContainer } from "@/utils/appScroll";
 
 defineProps({
   articleHtml: {
@@ -24,8 +25,8 @@ const updateProgress = () => {
 onMounted(async () => {
   await nextTick();
 
-  // 主页面滚动已交给 App.vue 中的 el-scrollbar，这里监听它的真实滚动容器。
-  scrollContainer = document.querySelector(".app-scrollbar .el-scrollbar__wrap");
+  // 主页面滚动已交给 App.vue 中的 el-scrollbar，这里监听统一封装后的真实滚动容器。
+  scrollContainer = getAppScrollContainer();
   scrollContainer?.addEventListener("scroll", updateProgress, { passive: true });
   updateProgress();
 });

@@ -7,6 +7,7 @@ import ArticleHeader from "@/components/ArticleDetails/ArticleHeader.vue";
 import request from "@/utils/request";
 import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.jpg";
 import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.jpg";
+import { scrollAppToTop } from "@/utils/appScroll";
 
 const route = useRoute();
 const fallbackCovers = [fallbackCoverOne, fallbackCoverTwo];
@@ -78,7 +79,11 @@ const loadArticle = async id => {
   }
 };
 
-watch(articleId, loadArticle, { immediate: true });
+watch(articleId, id => {
+  // 从文章列表中部进入详情时，先把 App 级滚动容器归零，确保展示顶部封面。
+  scrollAppToTop();
+  loadArticle(id);
+}, { immediate: true });
 </script>
 
 <template>
