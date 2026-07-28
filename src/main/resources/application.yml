@@ -1,13 +1,32 @@
-storage:
+spring:
+  application:
+    name: demo_bk
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:demo_bk/.env[.properties]
+  servlet:
+    multipart:
+      max-file-size: ${BLOG_UPLOAD_MAX_FILE_SIZE:5MB}
+      max-request-size: ${BLOG_UPLOAD_MAX_REQUEST_SIZE:6MB}
+  data:
+    redis:
+      timeout: ${BLOG_REDIS_TIMEOUT:5000ms}
+      lettuce:
+        pool:
+          max-active: ${BLOG_REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${BLOG_REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${BLOG_REDIS_POOL_MIN_IDLE:0}
+          max-wait: ${BLOG_REDIS_POOL_MAX_WAIT:1000ms}
 
-  type: LOCAL
+server:
+  port: ${SERVER_PORT:5090}
 
-
-  local:
-
-    root-path: ${BLOG_STORAGE_ROOT:./blog-storage}
-
-    domain: ${BLOG_FILE_DOMAIN:http://localhost:${SERVER_PORT:5090}/files}
+blog:
+  scheduling:
+    enabled: ${BLOG_SCHEDULING_ENABLED:true}
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

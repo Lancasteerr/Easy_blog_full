@@ -4,14 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - .env.prod
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_PROFILES_ACTIVE: prod
     ports:
-      # 正式环境建议只绑定本机，再由反向代理对外提供 HTTPS。
+      # 正式环境建议只暴露给本机反向代理，由 Nginx/Caddy 统一处理 HTTPS。
       - "127.0.0.1:${SERVER_PORT:-5090}:${SERVER_PORT:-5090}"
     volumes:
-      # 上传文件目录挂载到宿主机，避免容器重建后丢失图片。
+      # 上传文件目录挂载到数据卷，避免容器重建后丢失图片。
       - blog-storage:/app/blog-storage
     depends_on:
       mysql:
@@ -23,7 +23,7 @@ services:
   mysql:
     image: mysql:8.4
     env_file:
-      - .env
+      - .env.prod
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-white_jotter}
       MYSQL_USER: ${BLOG_DB_USERNAME}
@@ -31,7 +31,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       TZ: Asia/Shanghai
     volumes:
-      # 数据库数据必须持久化，生产迁移和备份也应围绕该卷进行。
+      # 数据库数据必须持久化，备份和迁移都围绕该卷处理。
       - mysql-data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
@@ -43,7 +43,7 @@ services:
   redis:
     image: redis:7.4-alpine
     env_file:
-      - .env
+      - .env.prod
     command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${BLOG_REDIS_PASSWORD}\""]
     volumes:
       # 开启 AOF 并持久化 Redis 数据，降低容器重建造成的缓存/计数丢失。

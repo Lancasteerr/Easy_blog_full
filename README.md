@@ -51,9 +51,9 @@ src/main/java
 
 ### Configuration
 
-Runtime secrets are provided by environment variables. Do not commit a real `.env` file.
-For local IDEA startup, Spring Boot imports `demo_bk/.env` automatically when the working directory is the backend directory or the repository root.
-Write `.env` as `KEY=value` and do not wrap values in extra quotes.
+Runtime secrets are provided by environment variables. Do not commit real `.env`, `.env.dev`, or `.env.prod` files.
+The backend uses Spring profiles: `dev` for local development and `prod` for Docker deployment.
+For local Maven or IDEA startup, copy `.env.dev.example` to `.env` so Spring Boot can import it automatically.
 
 Generate a JWT secret:
 
@@ -64,7 +64,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 Required variables:
 
 ```properties
+SPRING_PROFILES_ACTIVE=prod
 SERVER_PORT=5090
+BLOG_CORS_ALLOWED_ORIGINS=https://your-frontend-domain.example
 BLOG_JWT_SECRET=your_generated_base64_secret
 BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
 BLOG_DB_USERNAME=blog_user
@@ -75,24 +77,34 @@ BLOG_REDIS_DATABASE=0
 BLOG_REDIS_PASSWORD=your_redis_password
 BLOG_STORAGE_ROOT=/app/blog-storage
 BLOG_FILE_DOMAIN=https://your-domain.example/files
+BLOG_UPLOAD_MAX_FILE_SIZE=5MB
+BLOG_UPLOAD_MAX_REQUEST_SIZE=6MB
 ```
 
 ### Run
 
-Docker Compose:
+Local development dependencies:
 
 ```bash
-cp .env.example .env
-docker compose -f docker-compose.example.yml up -d --build
+cp .env.dev.example .env.dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
 ```
 
-Local Maven:
+Local Maven backend:
 
 ```bash
+cp .env.dev .env
 mvn spring-boot:run
 ```
 
-or
+Production Docker Compose:
+
+```bash
+cp .env.prod.example .env.prod
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+```
+
+Package only:
 
 ```bash
 mvn clean package
@@ -164,9 +176,9 @@ src/main/java
 
 ### 配置说明
 
-运行时密钥通过环境变量注入，请不要提交真实 `.env` 文件。
-本地 IDEA 启动时，只要工作目录是后端目录或仓库根目录，Spring Boot 会自动导入 `demo_bk/.env`。
-`.env` 使用 `KEY=value` 格式即可，值不要额外包裹引号。
+运行时密钥通过环境变量注入，请不要提交真实 `.env`、`.env.dev` 或 `.env.prod` 文件。
+后端使用 Spring Profile 分离配置：`dev` 用于本地开发，`prod` 用于 Docker 正式部署。
+本地 Maven 或 IDEA 启动时，可以把 `.env.dev.example` 复制为 `.env`，Spring Boot 会自动导入。
 
 生成 JWT 密钥：
 
@@ -177,7 +189,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 必要变量：
 
 ```properties
+SPRING_PROFILES_ACTIVE=prod
 SERVER_PORT=5090
+BLOG_CORS_ALLOWED_ORIGINS=https://your-frontend-domain.example
 BLOG_JWT_SECRET=your_generated_base64_secret
 BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
 BLOG_DB_USERNAME=blog_user
@@ -188,24 +202,34 @@ BLOG_REDIS_DATABASE=0
 BLOG_REDIS_PASSWORD=your_redis_password
 BLOG_STORAGE_ROOT=/app/blog-storage
 BLOG_FILE_DOMAIN=https://your-domain.example/files
+BLOG_UPLOAD_MAX_FILE_SIZE=5MB
+BLOG_UPLOAD_MAX_REQUEST_SIZE=6MB
 ```
 
 ### 启动项目
 
-使用 Docker Compose 运行：
+启动本地开发依赖：
 
 ```bash
-cp .env.example .env
-docker compose -f docker-compose.example.yml up -d --build
+cp .env.dev.example .env.dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
 ```
 
-或使用 Maven 本地运行：
+使用 Maven 本地运行后端：
 
 ```bash
+cp .env.dev .env
 mvn spring-boot:run
 ```
 
-或打包后运行：
+正式 Docker Compose 部署：
+
+```bash
+cp .env.prod.example .env.prod
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+```
+
+仅打包：
 
 ```bash
 mvn clean package

@@ -1,0 +1,43 @@
+services:
+  mysql:
+    image: mysql:8.4
+    env_file:
+      - .env.dev
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-white_jotter}
+      MYSQL_USER: ${BLOG_DB_USERNAME:-blog_user}
+      MYSQL_PASSWORD: ${BLOG_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+    ports:
+      # 开发环境只绑定本机，方便 Maven 后端连接，避免被局域网直接访问。
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3306}:3306"
+    volumes:
+      - mysql-dev-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    env_file:
+      - .env.dev
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${BLOG_REDIS_PASSWORD}\""]
+    ports:
+      # 开发环境只绑定本机，防止 Redis 密码被公网撞库。
+      - "127.0.0.1:${BLOG_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-dev-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${BLOG_REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mysql-dev-data:
+  redis-dev-data:

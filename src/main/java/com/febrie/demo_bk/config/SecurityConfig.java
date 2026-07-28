@@ -1,6 +1,7 @@
 package com.febrie.demo_bk.config;
 
 import com.febrie.demo_bk.filter.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,9 +14,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
+
+    @Value("${blog.cors.allowed-origins}")
+    private String corsAllowedOrigins;
 
     //密码加密方式
     @Bean
@@ -31,11 +36,12 @@ public class SecurityConfig {
                 .cors(cors -> cors
                         .configurationSource(request -> {
                             CorsConfiguration config = new CorsConfiguration();
-                            config.addAllowedOrigin("http://localhost:8080");
-                            config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS"));
-                            config.addAllowedHeader("Authorization");
-                            config.addAllowedHeader("Content-Type");
-                            config.setAllowCredentials(true);
+                            // CORS允许域名由不同Profile配置，避免生产环境继续放行开发地址。
+                            config.setAllowedOrigins(resolveAllowedOrigins());
+                            config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                            config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+                            config.setAllowCredentials(false);
+                            config.setMaxAge(3600L);
                             return config;
                         }))
                 .csrf(csrf -> csrf.disable())
@@ -53,6 +59,20 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private List<String> resolveAllowedOrigins() {
+        List<String> origins =
+                Arrays.stream(corsAllowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(origin -> !origin.isBlank())
+                        .toList();
+
+        if (origins.isEmpty()) {
+            throw new IllegalStateException("BLOG_CORS_ALLOWED_ORIGINS不能为空，请配置允许访问后端的前端域名");
+        }
+
+        return origins;
     }
 
     //登录认证manager

@@ -37,8 +37,6 @@ public class LoginController {
         this.jwtUtil = jwtUtil;
     }
 
-    //跨域支持
-    @CrossOrigin
     //post请求为api/login将转发到该方法
     @PostMapping(value = "api/public/login")
     //返回值为响应，转换为json

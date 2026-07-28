@@ -16,7 +16,6 @@ public class AddArticleController {
     @Autowired
     BlogArticleService blogArticleService;
 
-    @CrossOrigin
     @PostMapping(value = "api/admin/content/article")
     @ResponseBody
     @OperationLoger(module = "文章",type = "增加或修改")
@@ -28,7 +27,6 @@ public class AddArticleController {
         return new Result(200);
     }
 
-    @CrossOrigin
     @DeleteMapping(value = "api/admin/content/delarticle/{id}")
     @ResponseBody
     @OperationLoger(module = "文章",type = "删除")

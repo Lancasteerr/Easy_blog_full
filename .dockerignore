@@ -4,6 +4,8 @@ blog-storage/
 .env
 .env.*
 !.env.example
+!.env.dev.example
+!.env.prod.example
 .git/
 .idea/
 .vscode/
