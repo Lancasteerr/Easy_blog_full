@@ -18,7 +18,7 @@ public class ArticleController {
     @CrossOrigin
 
     @GetMapping("api/public/get_article_list")
-    @OperationLoger(module = "文章列表",type = "获取")
+    //@OperationLoger(module = "文章列表",type = "获取")
     public PageResult getArticles(
             @RequestParam int page,
             @RequestParam int size,
@@ -30,7 +30,7 @@ public class ArticleController {
     @CrossOrigin
 
     @GetMapping("api/public/article")
-    @OperationLoger(module = "文章详情",type = "通过id查找")
+    //@OperationLoger(module = "文章详情",type = "通过id查找")
     public ArticleDTO getArticleById(@RequestParam int id){
         return blogArticleService.findById(id);
     }
