@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -16,7 +17,14 @@ import java.io.IOException;
  * 解析 JWT 并验证它是否有效
  */
 
+@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtUtil jwtUtil;
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -35,8 +43,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if(token != null && token.startsWith("Bearer ")){
             token = token.substring(7);
             try {
-                if(!JwtUtil.isTokenExpired(token)) {
-                    Claims claims = JwtUtil.parsePayload(token);
+                if(!jwtUtil.isTokenExpired(token)) {
+                    Claims claims = jwtUtil.parsePayload(token);
                     String userName = claims.getSubject();
 
                     if(userName != null) {

@@ -25,7 +25,8 @@ public class SecurityConfig {
 
     //设置api访问权限
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                          JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception{
         http
                 .cors(cors -> cors
                         .configurationSource(request -> {
@@ -49,7 +50,7 @@ public class SecurityConfig {
                 .httpBasic(basic->basic.disable())//禁用http basic
 
                 // 添加自定义的 JWT 认证过滤器，确保在 UsernamePasswordAuthenticationFilter 之前执行
-                .addFilterBefore(new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -5,34 +5,43 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SecureDigestAlgorithm;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Date;
 
 /**
  * JWT生成和解析
  */
 
+@Component
 public class JwtUtil {
+
+    private static final int MIN_SECRET_BYTES = 32;
+
     /**
-     * 私钥 / 生成签名的时候使用的秘钥secret，一般可以从本地配置文件中读取，切记这个秘钥不能外露，只在服务端使用，在任何场景都不应该流露出去。
-     * 一旦客户端得知这个secret, 那就意味着客户端是可以自我签发jwt了。
-     * 应该大于等于 256位(长度32及以上的字符串)，并且是随机的字符串
+     * JWT签名密钥只从运行时配置读取，避免把生产密钥提交到仓库。
      */
-    private static final String SECRET_KEY = "zWpbuTUAmSvNusUJMVt6Wsbra2SRse6m";
-    //密钥实例
-    private static final SecretKey KEY = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+    private final SecretKey key;
+
     //加密算法
-    private static final SecureDigestAlgorithm<SecretKey,SecretKey> ALGORITHM = Jwts.SIG.HS256;
+    private final SecureDigestAlgorithm<SecretKey,SecretKey> algorithm = Jwts.SIG.HS256;
+
+    public JwtUtil(@Value("${blog.jwt.secret:}") String secret) {
+        byte[] keyBytes = resolveSecretBytes(secret);
+        this.key = Keys.hmacShaKeyFor(keyBytes);
+    }
 
     //生成JWT
-    public static String generateToken(String username){
+    public String generateToken(String username){
         return Jwts.builder()
                 .subject(username)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000))
-                .signWith(KEY,ALGORITHM)
+                .signWith(key,algorithm)
                 .compact();
     }
 
@@ -41,26 +50,59 @@ public class JwtUtil {
      * @param token token
      * @return Jws<Claims>
      */
-    public static Jws<Claims> parseToken(String token){
+    public Jws<Claims> parseToken(String token){
         return Jwts.parser()
-                .verifyWith(KEY)
+                .verifyWith(key)
                 .build()
                 .parseSignedClaims(token);
     }
 
     //获取Payload
-    public static Claims parsePayload(String token){
+    public Claims parsePayload(String token){
         return parseToken(token).getPayload();
     }
 
     //获取用户信息
-    public  static String getUsernameFromToken(String token){
+    public String getUsernameFromToken(String token){
         return parsePayload(token).getSubject();
     }
 
     //判断token是否过期
-    public static boolean isTokenExpired(String token) {
+    public boolean isTokenExpired(String token) {
         return parsePayload(token).getExpiration().before(new Date());//比较过期时间
+    }
+
+    private byte[] resolveSecretBytes(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "BLOG_JWT_SECRET不能为空，请在环境变量或.env中配置至少32字节的随机密钥"
+            );
+        }
+
+        String trimmedSecret = secret.trim();
+        byte[] decodedBytes = tryDecodeBase64(trimmedSecret);
+        byte[] rawBytes = trimmedSecret.getBytes(StandardCharsets.UTF_8);
+
+        // 优先使用Base64解码结果，兼容推荐的随机密钥生成方式；普通字符串也可作为本地开发密钥。
+        if (decodedBytes != null && decodedBytes.length >= MIN_SECRET_BYTES) {
+            return decodedBytes;
+        }
+
+        if (rawBytes.length >= MIN_SECRET_BYTES) {
+            return rawBytes;
+        }
+
+        throw new IllegalStateException(
+                "BLOG_JWT_SECRET强度不足，HS256至少需要32字节随机密钥"
+        );
+    }
+
+    private byte[] tryDecodeBase64(String secret) {
+        try {
+            return Base64.getDecoder().decode(secret);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
 }

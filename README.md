@@ -51,22 +51,42 @@ src/main/java
 
 ### Configuration
 
-Edit `application.yml`:
+Runtime secrets are provided by environment variables. Do not commit a real `.env` file.
+For local IDEA startup, Spring Boot imports `demo_bk/.env` automatically when the working directory is the backend directory or the repository root.
+Write `.env` as `KEY=value` and do not wrap values in extra quotes.
 
-```yml
-spring.datasource.url=jdbc:your_MySQL_url
-spring.datasource.username=root
-#Change to your SQL password
-spring.datasource.password=your_password
+Generate a JWT secret:
 
-#Redis basic connection
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-#Redis password
-spring.data.redis.password=your_password
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Required variables:
+
+```properties
+SERVER_PORT=5090
+BLOG_JWT_SECRET=your_generated_base64_secret
+BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+BLOG_DB_USERNAME=blog_user
+BLOG_DB_PASSWORD=your_db_password
+BLOG_REDIS_HOST=redis
+BLOG_REDIS_PORT=6379
+BLOG_REDIS_DATABASE=0
+BLOG_REDIS_PASSWORD=your_redis_password
+BLOG_STORAGE_ROOT=/app/blog-storage
+BLOG_FILE_DOMAIN=https://your-domain.example/files
 ```
 
 ### Run
+
+Docker Compose:
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.example.yml up -d --build
+```
+
+Local Maven:
 
 ```bash
 mvn spring-boot:run
@@ -144,24 +164,42 @@ src/main/java
 
 ### 配置说明
 
-修改 `application.yml` 中的数据库和 Redis 配置：
+运行时密钥通过环境变量注入，请不要提交真实 `.env` 文件。
+本地 IDEA 启动时，只要工作目录是后端目录或仓库根目录，Spring Boot 会自动导入 `demo_bk/.env`。
+`.env` 使用 `KEY=value` 格式即可，值不要额外包裹引号。
 
-```yml
-spring.datasource.url=jdbc:your_MySQL_url
-spring.datasource.username=root
-#Change to your SQL password
-spring.datasource.password=your_password
+生成 JWT 密钥：
 
-#Redis basic connection
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-#Redis password
-spring.data.redis.password=your_password
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+必要变量：
+
+```properties
+SERVER_PORT=5090
+BLOG_JWT_SECRET=your_generated_base64_secret
+BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+BLOG_DB_USERNAME=blog_user
+BLOG_DB_PASSWORD=your_db_password
+BLOG_REDIS_HOST=redis
+BLOG_REDIS_PORT=6379
+BLOG_REDIS_DATABASE=0
+BLOG_REDIS_PASSWORD=your_redis_password
+BLOG_STORAGE_ROOT=/app/blog-storage
+BLOG_FILE_DOMAIN=https://your-domain.example/files
 ```
 
 ### 启动项目
 
-使用 Maven 运行：
+使用 Docker Compose 运行：
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.example.yml up -d --build
+```
+
+或使用 Maven 本地运行：
 
 ```bash
 mvn spring-boot:run

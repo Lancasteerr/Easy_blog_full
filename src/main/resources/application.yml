@@ -5,9 +5,9 @@ storage:
 
   local:
 
-    root-path: ./blog-storage
+    root-path: ${BLOG_STORAGE_ROOT:./blog-storage}
 
-    domain: http://localhost:5090/files
+    domain: ${BLOG_FILE_DOMAIN:http://localhost:${SERVER_PORT:5090}/files}
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

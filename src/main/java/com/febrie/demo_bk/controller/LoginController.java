@@ -23,14 +23,18 @@ public class LoginController {
 
     private final LoginAttemptService loginAttemptService;
 
+    private final JwtUtil jwtUtil;
+
     public LoginController(
             UserService userService,
             PasswordEncoder passwordEncoder,
-            LoginAttemptService loginAttemptService
+            LoginAttemptService loginAttemptService,
+            JwtUtil jwtUtil
     ){
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.loginAttemptService = loginAttemptService;
+        this.jwtUtil = jwtUtil;
     }
 
     //跨域支持
@@ -80,7 +84,7 @@ public class LoginController {
         );
 
         //生成JWT
-        String token = JwtUtil.generateToken(userName);
+        String token = jwtUtil.generateToken(userName);
 
         return new Result(200,token);
     }
