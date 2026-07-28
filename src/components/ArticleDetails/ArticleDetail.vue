@@ -107,7 +107,7 @@ watch(articleId, loadArticle, { immediate: true });
 
 .article-main {
   width: min(960px, calc(100% - 32px));
-  margin: 42px auto 0;
+  margin: 36px auto 0;
 }
 
 @media (max-width: 640px) {

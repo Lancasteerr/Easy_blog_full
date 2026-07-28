@@ -60,15 +60,16 @@ onBeforeUnmount(() => {
 /* 卡片 */
 .article-card {
   width: min(900px, 100%);
-  background-color: rgba(18, 18, 18, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(43, 47, 54, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
+  color: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .article-card :deep(.el-card__body) {
-  padding: 42px;
+  padding: 38px 42px;
 }
 
 /* 阅读进度条 */
@@ -86,7 +87,7 @@ onBeforeUnmount(() => {
 .markdown-body {
   max-width: 760px;
   margin: 0 auto;
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(255, 255, 255, 0.82);
   line-height: 1.75;
   font-family: "Source Han Sans Regular", sans-serif;
 }
@@ -98,12 +99,12 @@ onBeforeUnmount(() => {
 .markdown-body :deep(h5),
 .markdown-body :deep(h6) {
   color: #ffffff;
-  border-bottom-color: rgba(255, 255, 255, 0.12);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 .markdown-body :deep(p),
 .markdown-body :deep(li) {
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .markdown-body :deep(a) {
@@ -111,30 +112,30 @@ onBeforeUnmount(() => {
 }
 
 .markdown-body :deep(blockquote) {
-  color: rgba(255, 255, 255, 0.74);
-  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  background-color: rgba(255, 255, 255, 0.07);
   border-left-color: #4dbbff;
   border-radius: 4px;
 }
 
 .markdown-body :deep(code) {
   color: #f3f7fb;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(18, 18, 18, 0.34);
 }
 
 .markdown-body :deep(pre) {
   color: #d6deeb;
-  background-color: #181818;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(24, 26, 30, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .markdown-body :deep(table tr) {
-  background-color: #181818;
+  background-color: rgba(35, 39, 45, 0.9);
   border-top-color: rgba(255, 255, 255, 0.14);
 }
 
 .markdown-body :deep(table tr:nth-child(2n)) {
-  background-color: #202020;
+  background-color: rgba(51, 56, 64, 0.72);
 }
 
 .markdown-body :deep(table th),
@@ -150,7 +151,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .article-card :deep(.el-card__body) {
-    padding: 26px 20px;
+    padding: 24px 20px;
   }
 }
 </style>
