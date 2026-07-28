@@ -333,7 +333,7 @@ public class BlogArticleService {
                         .orderByDesc(BlogArticle::getId);
             } else {
                 queryWrapper
-                        .orderByDesc(BlogArticle::getId);
+                        .orderByDesc(BlogArticle::getArticleDate);
             }
 
             Page<ArticleListDTO> result = blogArticleDAO.selectArticleListPage(
