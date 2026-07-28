@@ -1,4 +1,15 @@
 services:
+  frontend:
+    build:
+      context: ../blog_front
+      dockerfile: Dockerfile
+    ports:
+      # 前端 nginx 对外提供 HTTP；HTTPS 建议由宿主机网关或云厂商证书层处理。
+      - "${FRONTEND_HTTP_PORT:-80}:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -7,9 +18,9 @@ services:
       - .env.prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
-    ports:
-      # 正式环境建议只暴露给本机反向代理，由 Nginx/Caddy 统一处理 HTTPS。
-      - "127.0.0.1:${SERVER_PORT:-5090}:${SERVER_PORT:-5090}"
+    expose:
+      # 后端只暴露给 Compose 内部网络，由 frontend/nginx 统一反代。
+      - "${SERVER_PORT:-5090}"
     volumes:
       # 上传文件目录挂载到数据卷，避免容器重建后丢失图片。
       - blog-storage:/app/blog-storage
