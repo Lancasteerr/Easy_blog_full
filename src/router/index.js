@@ -32,6 +32,8 @@ const routes = [
       component: ManagePage,
       meta:{
           requireAuth:true,
+          // 管理相关页面统一由 App.vue 主滚动容器承载固定背景。
+          useManageBackground:true,
       }
     },
     {
@@ -48,7 +50,11 @@ const routes = [
     {
         path:'/articlelist',
         name: 'ArticleList',
-        component: ArticleListPage
+        component: ArticleListPage,
+        meta:{
+            // 文章列表页使用管理背景，保证滚动条轨道也显示花纹。
+            useManageBackground:true,
+        }
     },
     {
       path:'/article',
@@ -66,6 +72,7 @@ const routes = [
       component: ArticleEditPage,
       meta:{
           requireAuth:true,
+          useManageBackground:true,
       }
     },
     {
@@ -74,6 +81,7 @@ const routes = [
         component: ArticleEditPage,
         meta:{
             requireAuth:true,
+            useManageBackground:true,
         }
     },
     {

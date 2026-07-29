@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import ArticleCard from "@/components/ArticleDetails/ArticleCard.vue";
 import CommonFooterLayout from "@/components/Footer/CommonFooterLayout.vue";
@@ -11,6 +11,8 @@ import { scrollAppToTop } from "@/utils/appScroll";
 
 const route = useRoute();
 const fallbackCovers = [fallbackCoverOne, fallbackCoverTwo];
+const SITE_TITLE = "Febrie 的博客 - Febrie's Blog";
+const ARTICLE_TITLE_SUFFIX = "Febrie's Blog";
 
 const articleTitle = ref("文章加载中");
 const articleHtml = ref("");
@@ -18,6 +20,13 @@ const articleDate = ref("未知日期");
 const articleCoverUrl = ref(fallbackCoverOne);
 
 const articleId = computed(() => route.params.id || route.query.id);
+
+const setArticleDocumentTitle = title => {
+  const safeTitle = typeof title === "string" && title.trim() ? title.trim() : "未命名文章";
+
+  // 文章详情页使用文章标题作为浏览器标签，方便用户在多个标签页中识别内容。
+  document.title = `${safeTitle} | ${ARTICLE_TITLE_SUFFIX}`;
+};
 
 const formatArticleDate = date => {
   if (!date) return "未知日期";
@@ -55,6 +64,7 @@ const loadArticle = async id => {
     articleHtml.value = "";
     articleDate.value = "未知日期";
     articleCoverUrl.value = fallbackCovers[0];
+    setArticleDocumentTitle(articleTitle.value);
     return;
   }
 
@@ -70,12 +80,14 @@ const loadArticle = async id => {
     articleHtml.value = data.articleContentHtml || "";
     articleDate.value = formatArticleDate(data.articleDate);
     articleCoverUrl.value = getArticleCoverUrl(data, id);
+    setArticleDocumentTitle(articleTitle.value);
   } catch (error) {
     console.error("Get article detail fail:", error);
     articleTitle.value = "文章加载失败";
     articleHtml.value = "";
     articleDate.value = "未知日期";
     articleCoverUrl.value = getFallbackCover(id);
+    setArticleDocumentTitle(articleTitle.value);
   }
 };
 
@@ -84,6 +96,11 @@ watch(articleId, id => {
   scrollAppToTop();
   loadArticle(id);
 }, { immediate: true });
+
+onUnmounted(() => {
+  // 离开文章详情页后恢复站点默认标题，避免文章标题残留到其它页面。
+  document.title = SITE_TITLE;
+});
 </script>
 
 <template>

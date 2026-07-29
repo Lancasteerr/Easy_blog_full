@@ -20,24 +20,9 @@ const currentComponet = computed(() =>{
       @switch-write = "articleView = 'write'"
       @switch-list = "articleView = 'list'"
     ></ManageHeader>
-    <div class ="ArticleBackgroundImg"></div>
     <CommonFooterLayout>
       <!-- 主管理页面 状态切换-->
       <component :is="currentComponet"></component>
     </CommonFooterLayout>
   </div>
 </template>
-
-<style scoped lang="scss">
-.ArticleBackgroundImg{
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('@/assets/ManageBackground/1.jpg');
-  background-size: cover;
-  background-position: center;
-  z-index: -1;
-}
-</style>

@@ -21,8 +21,8 @@ const logout = () =>{
   <div>
     <el-header class="Manage-header">
       <div class="Manage-header-container">
-        <div id="Manage-logo" style="width: 60%">
-          <img src="@/assets/nekoicon.png" alt="Logo">
+        <div class="Manage-logo">
+          <span class="manage-brand-text">Febrie's Blog</span>
         </div>
         <div class="Manage-header-items">
           <div class="function-items">
@@ -52,9 +52,21 @@ const logout = () =>{
   background-color: rgba(0,0,0,0);
   border-bottom: 1px solid hsla(0,0%,100%,.5);
 }
-#Manage-logo img{
-  height: 70px;
-  padding: 0;
+.Manage-logo{
+  display: flex;
+  align-items: center;
+  width: 60%;
+  min-width: 0;
+}
+.manage-brand-text{
+  // 编辑页 Header 使用文字品牌，与管理页保持统一。
+  color: #ffffff;
+  font-family: "Source Han Sans Bold", sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
 }
 .Manage-header-items{
   height: 100%;
@@ -93,5 +105,19 @@ const logout = () =>{
 .to-homePage :deep(span),
 .Manage-Article :deep(span){
   color: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .Manage-header-container{
+    padding: 0 14px;
+  }
+
+  .Manage-logo{
+    width: 48%;
+  }
+
+  .manage-brand-text{
+    font-size: 22px;
+  }
 }
 </style>

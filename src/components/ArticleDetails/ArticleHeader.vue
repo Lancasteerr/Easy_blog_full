@@ -27,7 +27,7 @@ const goToHomepage = () => {
     <div class="hero-mask"></div>
 
     <el-header class="site-header">
-      <button class="site-brand" type="button" @click="goToHomepage">neko dev</button>
+      <button class="site-brand" type="button" @click="goToHomepage">Febrie's Blog</button>
 
       <nav class="site-nav" aria-label="文章详情导航">
         <el-button class="nav-link" link @click="goToHomepage">首页</el-button>
@@ -89,13 +89,13 @@ const goToHomepage = () => {
 }
 
 .site-brand {
+  // 文章详情页顶部品牌固定展示站点名，正文标题继续展示文章标题。
   padding: 0;
   border: 0;
   background: transparent;
   color: #ffffff;
   font-family: "Source Han Sans Bold", sans-serif;
   font-size: 22px;
-  font-style: italic;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;

@@ -18,6 +18,8 @@
   height: 100vh;
   justify-content: center;
   align-items: center;
+  /* 覆盖全局滚动条样式里的深色根背景，让错误页恢复白色背景。 */
+  background-color: #ffffff;
 }
 .text{
   box-sizing: border-box;

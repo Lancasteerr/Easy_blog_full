@@ -6,8 +6,6 @@ import ManageIndex from "@/components/manage/manage-index/Manage-Index.vue";
 
 <template>
   <div class="ManagerEdit-Container">
-    <!-- 管理页面背景 -->
-    <div class ="ArticleBackgroundImg"></div>
     <CommonFooterLayout>
       <!-- 管理页面Header -->
       <ArticleEditHeader></ArticleEditHeader>
@@ -16,17 +14,3 @@ import ManageIndex from "@/components/manage/manage-index/Manage-Index.vue";
     </CommonFooterLayout>
   </div>
 </template>
-
-<style scoped lang="scss">
-.ArticleBackgroundImg{
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('@/assets/ManageBackground/1.jpg');
-  background-size: cover;
-  background-position: center;
-  z-index: -1;
-}
-</style>

@@ -18,8 +18,8 @@ const logout = () =>{
   <div>
     <el-header class="Manage-header">
       <div class="Manage-header-container">
-        <div id="Manage-logo" style="width: 60%">
-          <img src="@/assets/nekoicon.png" alt="Logo">
+        <div class="Manage-logo">
+          <span class="manage-brand-text">Febrie's Blog</span>
         </div>
         <div class="Manage-header-items">
           <div class="function-items">
@@ -49,12 +49,24 @@ const logout = () =>{
   padding: 0 20px;
   backdrop-filter: blur(10px);
   background-color: rgba(33, 36, 42, 0.78);
-  border-bottom: 1px solid rgba(243, 255, 0, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
 }
-#Manage-logo img{
-  height: 70px;
-  padding: 0;
+.Manage-logo{
+  display: flex;
+  align-items: center;
+  width: 60%;
+  min-width: 0;
+}
+.manage-brand-text{
+  // 管理页 Header 使用文字品牌，避免继续依赖旧图片 Logo。
+  color: #ffffff;
+  font-family: "Source Han Sans Bold", sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
 }
 .Manage-header-items{
   height: 100%;
@@ -99,5 +111,19 @@ const logout = () =>{
 .Write-Article :deep(span),
 .Manage-Article :deep(span){
   color: inherit;
+}
+
+@media (max-width: 640px) {
+  .Manage-header-container{
+    padding: 0 14px;
+  }
+
+  .Manage-logo{
+    width: 48%;
+  }
+
+  .manage-brand-text{
+    font-size: 22px;
+  }
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <footer class="footer">
-    © 2025 Febrie. All Rights Reserved.
+    © 2025 - 2026 Febrie. All Rights Reserved.
   </footer>
 </template>
 
@@ -16,6 +16,6 @@
   background-color: rgba(51, 51, 51, 0.88);
   color: rgba(255, 255, 255, 0.7);
   box-sizing: border-box;
-  border-top: 0.5px solid rgba(255, 255, 255, 0.71);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 </style>
