@@ -44,6 +44,7 @@ services:
     volumes:
       # 数据库数据必须持久化，备份和迁移都围绕该卷处理。
       - mysql-data:/var/lib/mysql
+      - ./sql/white_jotter.sql:/docker-entrypoint-initdb.d/01-white_jotter.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 10s

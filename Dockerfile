@@ -3,6 +3,9 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /build
 
+# 使用 Maven 镜像源，避免 Docker 构建时直连 Maven Central 超时或 TLS 握手失败。
+COPY docker/maven-settings.xml /root/.m2/settings.xml
+
 # 先复制 pom.xml 预下载依赖，提高重复构建速度。
 COPY pom.xml .
 RUN mvn -q -DskipTests dependency:go-offline
