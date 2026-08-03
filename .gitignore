@@ -1,0 +1,28 @@
+# 根目录真实环境变量和本地备份文件禁止入库，避免泄露生产密钥。
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# 后端 Maven 构建产物和本地上传文件不进入仓库。
+target/
+**/target/
+blog-storage/
+**/blog-storage/
+
+# 前端依赖和构建产物由 npm/Docker/GitHub Actions 重新生成。
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+
+# 编辑器、系统文件和日志不参与版本管理。
+.idea/
+.vscode/
+*.iml
+*.log
+logs/
+Thumbs.db
+.DS_Store
