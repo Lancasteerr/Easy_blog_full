@@ -125,7 +125,27 @@ MySQL 官方镜像只会在数据库数据卷第一次创建、且 `/var/lib/mys
 - 如果 `mysql-data` 卷已经存在，修改 SQL 后不会自动重新执行。
 - 如需重跑 SQL 初始化，要删除数据卷，见“停止与清理”。
 
-## 四、启动本地完整部署
+## 四、上传文件保存位置
+
+Docker 部署时，上传的封面和文章内图片不会保存到源码目录 `demo_bk/blog-storage`。后端容器把文件保存到容器内路径：
+
+```text
+/app/blog-storage
+```
+
+该路径由 Docker named volume 持久化。本地模拟生产如果使用 `-p easy-blog-prod`，对应卷名通常是：
+
+```text
+easy-blog-prod_blog-storage
+```
+
+查看已保存文件：
+
+```bash
+docker exec easy-blog-prod-backend-1 find /app/blog-storage -maxdepth 6 -type f
+```
+
+## 五、启动本地完整部署
 
 首次启动并构建。该命令只建议在开发机执行：
 
@@ -162,7 +182,7 @@ http://localhost:8081/neko-panel/login
 http://localhost:8081/api/public/get_article_list?page=1&size=5
 ```
 
-## 五、连接 MySQL 控制台
+## 六、连接 MySQL 控制台
 
 使用 root 进入 MySQL：
 
@@ -184,7 +204,7 @@ SELECT id, user_name, role FROM user;
 exit;
 ```
 
-## 六、使用 Navicat 连接 Docker MySQL
+## 七、使用 Navicat 连接 Docker MySQL
 
 默认生产 Compose 没有暴露 MySQL 端口，所以 Navicat 不能直接连接。
 
@@ -221,7 +241,7 @@ Navicat 连接信息：
 
 注意：服务器正式部署时不建议把 MySQL 暴露到公网。
 
-## 七、插入后台账号
+## 八、插入后台账号
 
 后端登录使用 BCrypt 校验密码，`user.password` 不能写明文密码。
 
@@ -247,7 +267,7 @@ ON DUPLICATE KEY UPDATE
 SQL
 ```
 
-## 八、停止与清理
+## 九、停止与清理
 
 日常停止测试，保留数据库、Redis 和上传文件数据：
 
@@ -274,7 +294,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 - `down -v` 删除容器、网络和 volume，MySQL 数据会清空。
 - Docker Desktop 里手动删除容器通常不会删除 volume，数据库数据大概率仍在。
 
-## 九、常见问题
+## 十、常见问题
 
 ### 1. 后端镜像构建时 Maven 下载失败
 
@@ -351,7 +371,7 @@ BLOG_FILE_DOMAIN=http://localhost:8082/files
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 ```
 
-## 十、正式服务器部署提醒
+## 十一、正式服务器部署提醒
 
 本地测试使用 `http://localhost:8081`。正式服务器应改成真实域名：
 
