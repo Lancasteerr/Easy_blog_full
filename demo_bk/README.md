@@ -66,9 +66,11 @@ Required variables:
 ```properties
 SPRING_PROFILES_ACTIVE=prod
 SERVER_PORT=5090
+BLOG_BACKEND_IMAGE=ghcr.io/lancasteerr/easy-blog-backend:prod
+BLOG_FRONTEND_IMAGE=ghcr.io/lancasteerr/easy-blog-frontend:prod
 BLOG_CORS_ALLOWED_ORIGINS=https://your-frontend-domain.example
 BLOG_JWT_SECRET=your_generated_base64_secret
-BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&connectTimeout=3000&socketTimeout=10000&tcpKeepAlive=true&rewriteBatchedStatements=true
 BLOG_DB_USERNAME=blog_user
 BLOG_DB_PASSWORD=your_db_password
 BLOG_REDIS_HOST=redis
@@ -97,11 +99,12 @@ cp .env.dev .env
 mvn spring-boot:run
 ```
 
-Production Docker Compose:
+Production Docker Compose pulls prebuilt GHCR images:
 
 ```bash
 cp .env.prod.example .env.prod
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker-compose.prod.pull.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.pull.yml up -d
 ```
 
 Package only:
@@ -191,9 +194,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```properties
 SPRING_PROFILES_ACTIVE=prod
 SERVER_PORT=5090
+BLOG_BACKEND_IMAGE=ghcr.io/lancasteerr/easy-blog-backend:prod
+BLOG_FRONTEND_IMAGE=ghcr.io/lancasteerr/easy-blog-frontend:prod
 BLOG_CORS_ALLOWED_ORIGINS=https://your-frontend-domain.example
 BLOG_JWT_SECRET=your_generated_base64_secret
-BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+BLOG_DB_URL=jdbc:mysql://mysql:3306/white_jotter?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&connectTimeout=3000&socketTimeout=10000&tcpKeepAlive=true&rewriteBatchedStatements=true
 BLOG_DB_USERNAME=blog_user
 BLOG_DB_PASSWORD=your_db_password
 BLOG_REDIS_HOST=redis
@@ -222,11 +227,12 @@ cp .env.dev .env
 mvn spring-boot:run
 ```
 
-正式 Docker Compose 部署：
+正式 Docker Compose 部署会拉取 GitHub Actions 预先构建好的 GHCR 镜像：
 
 ```bash
 cp .env.prod.example .env.prod
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker-compose.prod.pull.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.pull.yml up -d
 ```
 
 仅打包：

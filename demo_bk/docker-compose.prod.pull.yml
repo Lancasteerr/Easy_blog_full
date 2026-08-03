@@ -1,0 +1,90 @@
+services:
+  frontend:
+    image: ${BLOG_FRONTEND_IMAGE:-ghcr.io/lancasteerr/easy-blog-frontend:prod}
+    ports:
+      # 前端 nginx 对外提供 HTTP；HTTPS 建议由宿主机网关或云厂商证书层处理。
+      - "${FRONTEND_HTTP_PORT:-80}:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: ${BLOG_BACKEND_IMAGE:-ghcr.io/lancasteerr/easy-blog-backend:prod}
+    env_file:
+      - .env.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # 限制后端 JVM 堆大小，给 MySQL、Redis 和系统缓存预留内存。
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+    expose:
+      # 后端只暴露给 Compose 内部网络，由 frontend/nginx 统一反代。
+      - "${SERVER_PORT:-5090}"
+    volumes:
+      # 上传文件目录挂载到数据卷，避免容器重建后丢失图片。
+      - blog-storage:/app/blog-storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    command:
+      # 2核2G单机部署限制 MySQL 连接和缓存，避免数据库独占内存。
+      - --max-connections=60
+      - --innodb-buffer-pool-size=384M
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --wait-timeout=1800
+      - --interactive-timeout=1800
+    env_file:
+      - .env.prod
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-white_jotter}
+      MYSQL_USER: ${BLOG_DB_USERNAME}
+      MYSQL_PASSWORD: ${BLOG_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      # 数据库数据必须持久化，备份和迁移都围绕该卷处理。
+      - mysql-data:/var/lib/mysql
+      - ./sql/white_jotter.sql:/docker-entrypoint-initdb.d/01-white_jotter.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    env_file:
+      - .env.prod
+    command:
+      - sh
+      - -c
+      - >
+        redis-server
+        --appendonly yes
+        --appendfsync everysec
+        --requirepass "$${BLOG_REDIS_PASSWORD}"
+        --maxmemory 192mb
+        --maxmemory-policy noeviction
+        --maxclients 64
+        --tcp-keepalive 60
+    volumes:
+      # 开启 AOF 并持久化 Redis 数据，降低容器重建造成的缓存/计数丢失。
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${BLOG_REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  blog-storage:
+  mysql-data:
+  redis-data:

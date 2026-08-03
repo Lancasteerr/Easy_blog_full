@@ -1,0 +1,69 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BACKEND_IMAGE: ghcr.io/lancasteerr/easy-blog-backend
+  FRONTEND_IMAGE: ghcr.io/lancasteerr/easy-blog-frontend
+
+jobs:
+  build-and-push:
+    name: Build and push backend/frontend images
+    runs-on: ubuntu-latest
+    concurrency:
+      group: docker-images-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./demo_bk
+          file: ./demo_bk/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:prod
+            ${{ env.BACKEND_IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Lancasteerr/Easy_blog_full
+            org.opencontainers.image.description=Easy Blog Spring Boot backend
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./blog_front
+          file: ./blog_front/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:prod
+            ${{ env.FRONTEND_IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Lancasteerr/Easy_blog_full
+            org.opencontainers.image.description=Easy Blog Vue frontend
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
