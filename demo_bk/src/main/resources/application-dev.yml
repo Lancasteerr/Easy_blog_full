@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: ${BLOG_DB_URL:jdbc:mysql://127.0.0.1:3306/white_jotter?characterEncoding=utf8&useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+    username: ${BLOG_DB_USERNAME:root}
+    password: ${BLOG_DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${BLOG_REDIS_HOST:127.0.0.1}
+      port: ${BLOG_REDIS_PORT:6379}
+      database: ${BLOG_REDIS_DATABASE:0}
+      password: ${BLOG_REDIS_PASSWORD:}
+
+blog:
+  jwt:
+    secret: ${BLOG_JWT_SECRET:dev-only-jwt-secret-change-me-at-least-32-bytes}
+  cors:
+    allowed-origins: ${BLOG_CORS_ALLOWED_ORIGINS:http://localhost:8080,http://127.0.0.1:8080}
+
+storage:
+  type: ${BLOG_STORAGE_TYPE:LOCAL}
+  local:
+    root-path: ${BLOG_STORAGE_ROOT:./blog-storage}
+    domain: ${BLOG_FILE_DOMAIN:http://localhost:${SERVER_PORT:5090}/files}
+
+logging:
+  level:
+    com.febrie.demo_bk: DEBUG

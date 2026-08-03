@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.febrie.demo_bk.dao.BlogArticleDAO">
+
+    <!--
+        根据每日统计记录重新计算文章总浏览量。
+
+        这种写法具有幂等性：
+        重复执行不会重复累加。
+    -->
+    <update id="refreshTotalViewCount">
+
+        UPDATE blog_article
+        SET view_count = (
+        SELECT COALESCE(SUM(pv), 0)
+        FROM article_view_stat
+        WHERE article_id = #{articleId}
+        )
+        WHERE id = #{articleId}
+
+    </update>
+
+    <select id="selectArticleListPage"
+            resultType="com.febrie.demo_bk.dto.ArticleListDTO">
+
+        SELECT
+            id,
+            article_title AS articleTitle,
+            article_abstract AS articleAbstract,
+            article_date AS articleDate,
+            article_cover AS articleCover,
+            view_count AS viewCount,
+            cover_object_url AS coverURL
+        FROM blog_article
+        ${ew.customSqlSegment}
+
+
+    </select>
+
+</mapper>

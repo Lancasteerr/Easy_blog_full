@@ -1,0 +1,61 @@
+spring:
+  datasource:
+    url: ${BLOG_DB_URL}
+    username: ${BLOG_DB_USERNAME}
+    password: ${BLOG_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # 2核2G单机部署限制连接池大小，避免请求高峰时压垮 MySQL。
+      maximum-pool-size: ${BLOG_DB_POOL_MAX_SIZE:6}
+      minimum-idle: ${BLOG_DB_POOL_MIN_IDLE:2}
+      # 连接获取和校验都采用快速失败策略，避免请求长时间堆积。
+      connection-timeout: ${BLOG_DB_CONNECTION_TIMEOUT:5000}
+      validation-timeout: ${BLOG_DB_VALIDATION_TIMEOUT:3000}
+      # 空闲连接定期回收，降低小内存机器的常驻资源占用。
+      idle-timeout: ${BLOG_DB_IDLE_TIMEOUT:600000}
+      # 主动轮换旧连接，减少 MySQL 侧断开连接导致的偶发错误。
+      max-lifetime: ${BLOG_DB_MAX_LIFETIME:1500000}
+      keepalive-time: ${BLOG_DB_KEEPALIVE_TIME:300000}
+  data:
+    redis:
+      host: ${BLOG_REDIS_HOST}
+      port: ${BLOG_REDIS_PORT:6379}
+      database: ${BLOG_REDIS_DATABASE:0}
+      password: ${BLOG_REDIS_PASSWORD}
+
+server:
+  tomcat:
+    threads:
+      # 2核机器限制业务线程数量，避免过量线程造成上下文切换和内存压力。
+      max: ${SERVER_TOMCAT_THREADS_MAX:50}
+      min-spare: ${SERVER_TOMCAT_THREADS_MIN_SPARE:5}
+    # 限制连接和排队长度，超出承载能力时尽早拒绝而不是拖垮服务。
+    max-connections: ${SERVER_TOMCAT_MAX_CONNECTIONS:200}
+    accept-count: ${SERVER_TOMCAT_ACCEPT_COUNT:50}
+    connection-timeout: ${SERVER_TOMCAT_CONNECTION_TIMEOUT:5s}
+    keep-alive-timeout: ${SERVER_TOMCAT_KEEP_ALIVE_TIMEOUT:15s}
+    max-keep-alive-requests: ${SERVER_TOMCAT_MAX_KEEP_ALIVE_REQUESTS:100}
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    whitelabel:
+      enabled: false
+  forward-headers-strategy: framework
+
+blog:
+  jwt:
+    secret: ${BLOG_JWT_SECRET}
+  cors:
+    allowed-origins: ${BLOG_CORS_ALLOWED_ORIGINS}
+
+storage:
+  type: ${BLOG_STORAGE_TYPE:LOCAL}
+  local:
+    root-path: ${BLOG_STORAGE_ROOT:/app/blog-storage}
+    domain: ${BLOG_FILE_DOMAIN}
+
+logging:
+  level:
+    root: INFO
+    com.febrie.demo_bk: INFO

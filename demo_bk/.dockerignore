@@ -1,0 +1,12 @@
+# 减小构建上下文，避免把本地缓存、构建产物和真实密钥打进镜像。
+target/
+blog-storage/
+.env
+.env.*
+!.env.example
+!.env.dev.example
+!.env.prod.example
+.git/
+.idea/
+.vscode/
+*.log
