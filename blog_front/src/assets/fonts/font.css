@@ -1,0 +1,15 @@
+/* 仅加载压缩后的 woff2，避免生产包带上数十 MB 的 OTF 后备字体。 */
+@font-face {
+    font-family: "Source Han Sans Bold";
+    src: url("./SourceHanSans-Bold.woff2") format("woff2");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Source Han Sans Regular";
+    src: url("./SourceHanSans-Regular.woff2") format("woff2");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

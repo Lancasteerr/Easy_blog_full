@@ -1,0 +1,27 @@
+{
+  "about": {
+    "title": "关于我",
+    "subtitle": "ABOUT ME",
+    "paragraphs": [
+      "这里写你的个人介绍，可以稍微长一点。",
+      "例如技术方向、学习经历、博客定位和你正在关注的内容。"
+    ]
+  },
+  "workExp": {
+    "title": "工作履历",
+    "subtitle": "CAREER",
+    "paragraphs": [
+      "这里写项目经历、实习经历或学习实践。",
+      "可以按时间顺序简要描述重点。"
+    ]
+  },
+  "contact": {
+    "title": "联系我",
+    "subtitle": "CONTACT ME",
+    "items": [
+      "Email: example@example.com",
+      "GitHub: github.com/example",
+      "QQ / WeChat: 按需填写"
+    ]
+  }
+}
