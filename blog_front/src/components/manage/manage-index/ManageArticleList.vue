@@ -71,7 +71,8 @@ const loadArticles = async () => {
     const data = res.data;
     articles.value = data.content;
     total.value = data.totalElements;
-    page.value = data.number + 1;
+    // 后端返回的 PageResult.number 已经是 1 起始页码，直接同步给分页组件。
+    page.value = data.number;
   }catch (error){
     console.error("Get article_list fail:",error);
   }
