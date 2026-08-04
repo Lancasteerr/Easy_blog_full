@@ -20,11 +20,7 @@ const routes = [
     {
         path: '/about',
         name: 'MyAbout',
-        component: MyAbout,
-        meta:{
-            //需要登录后访问
-            requireAuth:true,
-        }
+        component: MyAbout
     },
     {
       path:'/neko-panel/manage',
@@ -85,9 +81,15 @@ const routes = [
         }
     },
     {
-        path: '/:pathMatch(.*)*',
+        path: '/404',
         name: 'PageNotFound',
         component: PageNotFound
+    },
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'PageNotFoundRedirect',
+        // 未命中的前端路径统一落到错误页，不再误走登录页。
+        redirect: '/404'
     },
 ]
 

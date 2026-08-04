@@ -65,23 +65,22 @@ app.use(router)  // 在此时使用 router
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
+    const hasToken = Boolean(localStorage.getItem("token"))
+    const requireAuth = to.matched.some(routeRecord => routeRecord.meta.requireAuth)
 
-    if(localStorage.getItem("token") && to.path === '/neko-panel/login'){
+    if(hasToken && to.path === '/neko-panel/login'){
         return next('/neko-panel/manage')
     }
 
-    if (to.meta.requireAuth) {
-        if (localStorage.getItem("token")) {
-            next()
-        } else {
-            next({
-                path: '/neko-panel/login',
-                query: { redirect: to.fullPath }
-            })
-        }
-    } else {
-        next()
+    if (requireAuth && !hasToken) {
+        // 只有后台管理路由要求登录，公开页面的错误访问交给 404 页面处理。
+        return next({
+            path: '/neko-panel/login',
+            query: { redirect: to.fullPath }
+        })
     }
+
+    next()
 })
 
 // 挂载应用

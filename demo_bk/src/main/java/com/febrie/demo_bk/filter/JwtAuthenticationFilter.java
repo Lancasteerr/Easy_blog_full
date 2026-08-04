@@ -1,17 +1,22 @@
 package com.febrie.demo_bk.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.febrie.demo_bk.result.ApiError;
 import com.febrie.demo_bk.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 解析 JWT 并验证它是否有效
@@ -22,8 +27,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    private final ObjectMapper objectMapper;
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil,
+                                   ObjectMapper objectMapper) {
         this.jwtUtil = jwtUtil;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -60,13 +69,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     }
                 }
             }catch (Exception e){
-                //解析token出错
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.getWriter().write("Invalid or expired token");
+                // Token 无效或过期时统一返回 401 JSON，让前端只按 HTTP 状态判断认证失败。
+                writeUnauthorizedResponse(request, response);
                 return;
             }
         }
 
         filterChain.doFilter(request,response);
+    }
+
+    private void writeUnauthorizedResponse(HttpServletRequest request,
+                                           HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+        objectMapper.writeValue(
+                response.getWriter(),
+                ApiError.of(
+                        HttpStatus.UNAUTHORIZED,
+                        "登录状态已失效，请重新登录",
+                        request.getRequestURI()
+                )
+        );
     }
 }

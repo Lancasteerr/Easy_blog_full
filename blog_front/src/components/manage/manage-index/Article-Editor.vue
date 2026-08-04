@@ -4,7 +4,7 @@ import { EditorContent, useEditor } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import request from "@/utils/request";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 
 const fileInput = ref(null);
@@ -16,6 +16,7 @@ const sessionUploadedImages = ref(new Map());
 const sessionUploadedCoverId = ref(null);
 const coverUploading = ref(false);
 const route = useRoute();
+const router = useRouter();
 
 const article = reactive({
   id: null,
@@ -177,23 +178,63 @@ const parseJsonContent = value => {
   }
 };
 
+const normalizeArticleId = id => {
+  const idText = String(id ?? "").trim();
+
+  if (!/^\d+$/.test(idText)) {
+    return null;
+  }
+
+  const numericId = Number.parseInt(idText, 10);
+  return numericId > 0 ? numericId : null;
+};
+
+const isNotFoundStatus = error => [400, 404].includes(error.response?.status);
+
+const goToNotFound = () => {
+  // 编辑已有文章时，非法 ID 或文章不存在都展示错误页；新建文章路径不受影响。
+  router.replace("/404");
+};
+
 const loadArticle = async id => {
-  if (!id) return;
+  const normalizedId = normalizeArticleId(id);
 
-  const res = await request.get("/public/article", {
-    params: { id },
-  });
+  if (!normalizedId) {
+    goToNotFound();
+    return;
+  }
 
-  article.id = res.data.id;
-  article.articleTitle = res.data.articleTitle || "";
-  article.articleAbstract = res.data.articleAbstract || "";
-  article.articleContentHtml = res.data.articleContentHtml || "";
-  article.articleContentJson = parseJsonContent(res.data.articleContentJson);
-  article.articleCover = res.data.articleCover ?? null;
-  article.coverObjectUrl = res.data.coverObjectUrl || res.data.coverURL || "";
+  try {
+    const res = await request.get("/public/article", {
+      params: { id: normalizedId },
+    });
 
-  await nextTick();
-  setEditorContent(article.articleContentJson || article.articleContentHtml || "<p></p>");
+    const data = res.data;
+
+    if (!data || !data.id) {
+      goToNotFound();
+      return;
+    }
+
+    article.id = data.id;
+    article.articleTitle = data.articleTitle || "";
+    article.articleAbstract = data.articleAbstract || "";
+    article.articleContentHtml = data.articleContentHtml || "";
+    article.articleContentJson = parseJsonContent(data.articleContentJson);
+    article.articleCover = data.articleCover ?? null;
+    article.coverObjectUrl = data.coverObjectUrl || data.coverURL || "";
+
+    await nextTick();
+    setEditorContent(article.articleContentJson || article.articleContentHtml || "<p></p>");
+  } catch (error) {
+    if (isNotFoundStatus(error)) {
+      goToNotFound();
+      return;
+    }
+
+    console.error("Load edit article failed:", error);
+    ElMessage.error("文章加载失败");
+  }
 };
 
 const chooseImage = () => {
@@ -361,6 +402,11 @@ const saveArticles = async () => {
     }
   } catch (error) {
     if (error !== "cancel") {
+      if (error.response?.status === 404) {
+        goToNotFound();
+        return;
+      }
+
       console.error("Save article failed:", error);
       ElMessage.error("保存失败");
       return;

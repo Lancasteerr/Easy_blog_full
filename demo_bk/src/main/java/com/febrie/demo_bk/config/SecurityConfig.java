@@ -1,9 +1,15 @@
 package com.febrie.demo_bk.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.febrie.demo_bk.filter.JwtAuthenticationFilter;
+import com.febrie.demo_bk.result.ApiError;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,6 +19,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -31,7 +39,8 @@ public class SecurityConfig {
     //设置api访问权限
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                          JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception{
+                                          JwtAuthenticationFilter jwtAuthenticationFilter,
+                                          ObjectMapper objectMapper) throws Exception{
         http
                 .cors(cors -> cors
                         .configurationSource(request -> {
@@ -51,6 +60,26 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/admin/**").authenticated()//管理接口需要认证才能访问
                         .anyRequest().authenticated()//其余所有访问都需要认证
+                )
+                .exceptionHandling(exception -> exception
+                        // 未登录访问受保护接口时返回标准 JSON，避免前端收到默认 HTML 或空响应。
+                        .authenticationEntryPoint((request, response, authException) ->
+                                writeSecurityError(
+                                        response,
+                                        request,
+                                        objectMapper,
+                                        HttpStatus.UNAUTHORIZED,
+                                        "请先登录"
+                                ))
+                        // 已登录但权限不足时使用 403，和未登录 401 区分开。
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                writeSecurityError(
+                                        response,
+                                        request,
+                                        objectMapper,
+                                        HttpStatus.FORBIDDEN,
+                                        "没有权限访问该资源"
+                                ))
                 )
                 .formLogin(form->form.disable())//禁用默认登录页
                 .httpBasic(basic->basic.disable())//禁用http basic
@@ -73,6 +102,25 @@ public class SecurityConfig {
         }
 
         return origins;
+    }
+
+    private void writeSecurityError(HttpServletResponse response,
+                                    HttpServletRequest request,
+                                    ObjectMapper objectMapper,
+                                    HttpStatus status,
+                                    String message) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+        objectMapper.writeValue(
+                response.getWriter(),
+                ApiError.of(
+                        status,
+                        message,
+                        request.getRequestURI()
+                )
+        );
     }
 
     //登录认证manager

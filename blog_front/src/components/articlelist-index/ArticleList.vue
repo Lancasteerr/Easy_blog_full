@@ -57,6 +57,13 @@ const pageSize = ref(10);
 const fallbackCovers = [fallbackCoverOne, fallbackCoverTwo];
 const ARTICLE_LIST_SCROLL_STATE_KEY = "articleListScrollState";
 
+const isNotFoundStatus = error => [400, 404].includes(error.response?.status);
+
+const goToNotFound = () => {
+  // 列表页参数或页码越界时进入错误页，正常第一页空列表不算错误。
+  router.replace("/404");
+};
+
 const waitForPagePaint = async () => {
   await nextTick();
 
@@ -108,12 +115,41 @@ const loadArticles = async () => {
     });
 
     const data = res.data;
-    articles.value = data.content;
-    total.value = data.totalElements;
+    const content = data?.content;
+    const totalElements = Number(data?.totalElements);
+    const currentPage = Number(data?.number);
+
+    if (!Array.isArray(content)
+        || !Number.isFinite(totalElements)
+        || totalElements < 0
+        || !Number.isFinite(currentPage)
+        || currentPage < 1) {
+      goToNotFound();
+      return false;
+    }
+
+    const maxPage = totalElements > 0
+        ? Math.ceil(totalElements / pageSize.value)
+        : 1;
+
+    if (totalElements > 0 && page.value > maxPage) {
+      goToNotFound();
+      return false;
+    }
+
+    articles.value = content;
+    total.value = totalElements;
     // 后端 PageResult.number 已经是 Element Plus 分页需要的 1 起始页码。
-    page.value = data.number;
+    page.value = currentPage;
+    return true;
   }catch (error){
+    if (isNotFoundStatus(error)) {
+      goToNotFound();
+      return false;
+    }
+
     console.error("Get article_list fail:",error);
+    return false;
   }
 };
 
@@ -162,9 +198,9 @@ onMounted(async () => {
     page.value = savedScrollState.page;
   }
 
-  await loadArticles();
+  const loaded = await loadArticles();
 
-  if (!savedScrollState) {
+  if (!loaded || !savedScrollState) {
     return;
   }
 

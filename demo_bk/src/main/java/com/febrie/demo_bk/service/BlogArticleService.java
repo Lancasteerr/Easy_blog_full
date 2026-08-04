@@ -9,6 +9,7 @@ import com.febrie.demo_bk.dao.ArticleViewStatDAO;
 import com.febrie.demo_bk.dao.BlogArticleDAO;
 import com.febrie.demo_bk.dto.ArticleDTO;
 import com.febrie.demo_bk.dto.ArticleListDTO;
+import com.febrie.demo_bk.exception.ResourceNotFoundException;
 import com.febrie.demo_bk.pojo.BlogArticle;
 import com.febrie.demo_bk.pojo.FileObject;
 import com.febrie.demo_bk.result.PageResult;
@@ -30,6 +31,8 @@ import java.util.regex.Pattern;
 public class BlogArticleService {
     private static final Pattern DATA_FILE_ID_PATTERN =
             Pattern.compile("data-file-id=[\"'](\\d+)[\"']");
+
+    private static final int MAX_PAGE_SIZE = 50;
 
     private BlogArticleDAO blogArticleDAO;
 
@@ -63,11 +66,19 @@ public class BlogArticleService {
     //@OperationLoger(module = "文章",type = "增加或修改")
     @Transactional(rollbackFor = Exception.class)
     public void addOrUpdate(ArticleDTO articleDTO) {
+        if (articleDTO == null) {
+            throw new IllegalArgumentException("文章内容不能为空");
+        }
+
         BlogArticle oldArticle = null;
         if (articleDTO.getId() != null) {
+            if (articleDTO.getId() <= 0) {
+                throw new IllegalArgumentException("文章ID不合法");
+            }
+
             oldArticle = blogArticleDAO.selectById(articleDTO.getId());
             if (oldArticle == null) {
-                throw new IllegalArgumentException("文章不存在");
+                throw new ResourceNotFoundException("文章不存在");
             }
         }
 
@@ -99,16 +110,25 @@ public class BlogArticleService {
     }
 
     /**
-     * 无缓存则查库后写入缓存，注意此处空对象不写入redis，直接返回null
+     * 无缓存则查库后写入缓存，文章不存在时返回 404，避免前端拿到 200 + null。
      */
     public ArticleDTO findById (int id) {
+        if (id <= 0) {
+            throw new IllegalArgumentException("文章ID不合法");
+        }
 
         String key = ARTICLE_DETAIL_CACHE_KEY + id;
 
         ArticleDTO cache = redisService.getObject(key,ArticleDTO.class);
         if(cache==null){
-            ArticleDTO dto = BlogArticle.toDTO(blogArticleDAO.selectById(id));
-            if(dto==null) return null;
+            BlogArticle article =
+                    blogArticleDAO.selectById(id);
+
+            if(article == null) {
+                throw new ResourceNotFoundException("文章不存在");
+            }
+
+            ArticleDTO dto = BlogArticle.toDTO(article);
             articleViewService.recordView((long) id);
             redisService.setObject(key,dto,30, TimeUnit.DAYS);//文章详细缓存TTL
             return dto;
@@ -121,7 +141,16 @@ public class BlogArticleService {
     //删除文章
     @Transactional(rollbackFor = Exception.class)
     public void delete(int id) {
+        if (id <= 0) {
+            throw new IllegalArgumentException("文章ID不合法");
+        }
+
         BlogArticle article = blogArticleDAO.selectById(id);
+
+        if (article == null) {
+            throw new ResourceNotFoundException("文章不存在");
+        }
+
         Set<Long> articleFileIds =
                 collectArticleFileIds(article);
 
@@ -297,6 +326,8 @@ public class BlogArticleService {
     }
 
     public PageResult getArticleList(int page, int size, String sort) {
+        validateArticlePageParams(page, size);
+
         Long version;
         String cacheKey;
         String normalizedSort = normalizeArticleListSort(sort);
@@ -351,6 +382,7 @@ public class BlogArticleService {
             );
 
             pageResult = PageResult.from(result);
+            validateArticleListPageBounds(pageResult, page, size);
             //加入新缓存 按列表类型设置缓存TTL
             if("viewCountDesc".equals(normalizedSort)) {
                 redisService.setObject(cacheKey,pageResult,1,TimeUnit.HOURS);
@@ -360,7 +392,39 @@ public class BlogArticleService {
 
             return pageResult;
         }
+        validateArticleListPageBounds(pageResult, page, size);
         return pageResult;
+    }
+
+    private void validateArticlePageParams(int page,
+                                           int size) {
+        if (page < 1) {
+            throw new IllegalArgumentException("页码不能小于1");
+        }
+
+        if (size < 1) {
+            throw new IllegalArgumentException("每页数量不能小于1");
+        }
+
+        if (size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("每页数量不能超过" + MAX_PAGE_SIZE);
+        }
+    }
+
+    private void validateArticleListPageBounds(PageResult pageResult,
+                                               int page,
+                                               int size) {
+        if (pageResult == null || pageResult.getTotalElements() <= 0) {
+            return;
+        }
+
+        long maxPage =
+                (pageResult.getTotalElements() + size - 1) / size;
+
+        if (page > maxPage) {
+            // 有文章时访问超过最大页码才是不存在；第一页空列表仍然允许正常展示。
+            throw new ResourceNotFoundException("文章列表页不存在");
+        }
     }
 
     private String normalizeArticleListSort(String sort) {

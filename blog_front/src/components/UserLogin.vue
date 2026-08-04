@@ -30,7 +30,13 @@ const login = async () => {
       alert('账号或密码错误');
     }
   } catch (error) {
+    if (error.response?.status === 400) {
+      alert('账号或密码错误，或登录过于频繁');
+      return;
+    }
+
     console.error('Login failed:', error);
+    alert('登录失败，请稍后再试');
   }
 };
 </script>

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import ArticleCard from "@/components/ArticleDetails/ArticleCard.vue";
 import CommonFooterLayout from "@/components/Footer/CommonFooterLayout.vue";
 import ArticleHeader from "@/components/ArticleDetails/ArticleHeader.vue";
@@ -10,9 +10,14 @@ import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.jpg";
 import { scrollAppToTop } from "@/utils/appScroll";
 
 const route = useRoute();
+const router = useRouter();
 const fallbackCovers = [fallbackCoverOne, fallbackCoverTwo];
 const SITE_TITLE = "Febrie 的博客 - Febrie's Blog";
 const ARTICLE_TITLE_SUFFIX = "Febrie's Blog";
+const ARTICLE_ROUTE_NAMES = new Set([
+  "ArticleDetailQuery",
+  "ArticleDetailRestful"
+]);
 
 const articleTitle = ref("文章加载中");
 const articleHtml = ref("");
@@ -20,6 +25,26 @@ const articleDate = ref("未知日期");
 const articleCoverUrl = ref(fallbackCoverOne);
 
 const articleId = computed(() => route.params.id || route.query.id);
+
+const isArticleRoute = () => ARTICLE_ROUTE_NAMES.has(route.name);
+
+const normalizeArticleId = id => {
+  const idText = String(id ?? "").trim();
+
+  if (!/^\d+$/.test(idText)) {
+    return null;
+  }
+
+  const numericId = Number.parseInt(idText, 10);
+  return numericId > 0 ? numericId : null;
+};
+
+const isNotFoundStatus = error => [400, 404].includes(error.response?.status);
+
+const goToNotFound = () => {
+  // 公开文章访问错误统一交给错误页展示，避免误跳登录页。
+  router.replace("/404");
+};
 
 const setArticleDocumentTitle = title => {
   const safeTitle = typeof title === "string" && title.trim() ? title.trim() : "未命名文章";
@@ -59,39 +84,52 @@ const getArticleCoverUrl = (article, id) => {
 };
 
 const loadArticle = async id => {
-  if (!id) {
-    articleTitle.value = "文章不存在";
-    articleHtml.value = "";
-    articleDate.value = "未知日期";
-    articleCoverUrl.value = fallbackCovers[0];
-    setArticleDocumentTitle(articleTitle.value);
+  const normalizedId = normalizeArticleId(id);
+
+  if (!normalizedId) {
+    goToNotFound();
     return;
   }
 
   try {
     // 详情页统一在外层取数，header 和正文组件只负责展示。
     const res = await request.get("/public/article", {
-      params: { id }
+      params: { id: normalizedId }
     });
 
-    const data = res.data || {};
+    const data = res.data;
+
+    if (!data || !data.id) {
+      goToNotFound();
+      return;
+    }
 
     articleTitle.value = data.articleTitle || "未命名文章";
     articleHtml.value = data.articleContentHtml || "";
     articleDate.value = formatArticleDate(data.articleDate);
-    articleCoverUrl.value = getArticleCoverUrl(data, id);
+    articleCoverUrl.value = getArticleCoverUrl(data, normalizedId);
     setArticleDocumentTitle(articleTitle.value);
   } catch (error) {
+    if (isNotFoundStatus(error)) {
+      goToNotFound();
+      return;
+    }
+
     console.error("Get article detail fail:", error);
     articleTitle.value = "文章加载失败";
     articleHtml.value = "";
     articleDate.value = "未知日期";
-    articleCoverUrl.value = getFallbackCover(id);
+    articleCoverUrl.value = getFallbackCover(normalizedId);
     setArticleDocumentTitle(articleTitle.value);
   }
 };
 
 watch(articleId, id => {
+  if (!isArticleRoute()) {
+    // 离开文章详情页时路由参数会短暂变空，此时不能触发文章页的 404 逻辑。
+    return;
+  }
+
   // 从文章列表中部进入详情时，先把 App 级滚动容器归零，确保展示顶部封面。
   scrollAppToTop();
   loadArticle(id);
