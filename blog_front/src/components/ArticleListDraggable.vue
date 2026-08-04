@@ -1,149 +1,57 @@
-<script>
-import {globalZIndex} from "@/utils/DraggableZIndex";
-import request from "@/utils/request";
-import router from "@/router";
-import {ArrowLeft, ArrowRight} from "@element-plus/icons-vue";
+<script setup>
+import { onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { ArrowLeft, ArrowRight } from "@element-plus/icons-vue";
+import DraggablePanel from "@/components/common/DraggablePanel.vue";
+import { usePagedArticles } from "@/composables/usePagedArticles";
 
-export default {
-  name:"ArticleListDraggable",
-  components: {
-    ArrowLeft,
-    ArrowRight,
+defineOptions({
+  name: "ArticleListDraggable",
+});
+
+const router = useRouter();
+const initialX = 0.74 * window.innerWidth;
+const initialY = 0.18 * window.innerHeight;
+
+const {
+  articles,
+  page,
+  loading,
+  loadFailed,
+  totalPages,
+  pageDots,
+  loadArticles,
+  changePage,
+  formatArticleDate,
+  formatViewCount,
+} = usePagedArticles({
+  pageSize: 5,
+  sort: "viewCountDesc",
+  onLoadError(error) {
+    console.error("Get hot article_list fail:", error);
+    return false;
   },
-  data(){
-    return {
-      position: {
-        x: 0.74 * window.innerWidth,
-        y: 0.18 * window.innerHeight,
-      },
-      dragging: false,
-      offset: {
-        x: 0,
-        y: 0,
-      },
-      zIndex: 1,
-      articles: [],
-      total: 0,
-      page: 1,
-      pageSize: 5,
-      loading: false,
-      loadFailed: false,
-    }
-  },
-  computed: {
-    totalPages() {
-      return Math.max(1, Math.ceil(this.total / this.pageSize));
-    },
-    pageDots() {
-      return Array.from({length: this.totalPages}, (_, index) => index + 1);
-    },
-  },
-  mounted() {
-    this.loadArticles();
-  },
-  beforeUnmount() {
-    document.removeEventListener("pointermove", this.onMouseMove);
-    document.removeEventListener("pointerup", this.onMouseUp);
-    document.body.style.userSelect = '';
-  },
-  methods:{
-    onMouseDown(event){
-      document.body.style.userSelect = 'none';//禁止文本选中
-      this.dragging = true;
-      this.offset.x = event.clientX - this.position.x;//给相对位置初值
-      this.offset.y = event.clientY - this.position.y;
-      //event.target.setPointerCapture(event.pointerId);//追踪指针直到离开窗口
-      this.zIndex = ++globalZIndex.value;
-      document.addEventListener("pointermove",this.onMouseMove);
-      document.addEventListener("pointerup",this.onMouseUp);
-    },
-    onMouseMove(event){
-      if(this.dragging){
-        let newX = event.clientX - this.offset.x;
-        let newY = event.clientY - this.offset.y;
+});
 
-        const el = this.$el;//当前组件DOM
-        const maxX = window.innerWidth - el.offsetWidth;
-        const maxY = window.innerHeight - el.offsetHeight;
+const goToArticleList = () => {
+  router.push("/articlelist");
+};
 
-        newX = Math.max(0,Math.min(newX,maxX));
-        newY = Math.max(80,Math.min(newY,maxY));
+const jumpto = id => {
+  router.push({ path: "/article", query: { id } });
+};
 
-        this.position.x = newX;//更新组件位置
-        this.position.y = newY;
-      }
-    },
-    onMouseUp(){
-      this.dragging=false;
-      //event.target.releasePointerCapture(event.pointerId);
-      document.removeEventListener("pointermove", this.onMouseMove);//移除鼠标移动监听器
-      document.removeEventListener("pointerup", this.onMouseUp);//移除鼠标释放监听器
-      document.body.style.userSelect = '';
-    },
-    async loadArticles(){
-      this.loading = true;
-      this.loadFailed = false;
-
-      try {
-        const res = await request.get("/public/get_article_list", {
-          params: {
-            page: this.page,
-            size: this.pageSize,
-            sort: "viewCountDesc",
-          }
-        });
-
-        const data = res.data || {};
-        this.articles = Array.isArray(data.content) ? data.content : [];
-        this.total = Number(data.totalElements) || 0;
-        this.page = Number(data.number) || this.page;
-      } catch (error) {
-        this.loadFailed = true;
-        console.error("Get hot article_list fail:", error);
-      } finally {
-        this.loading = false;
-      }
-    },
-    changePage(nextPage){
-      if (this.loading || nextPage < 1 || nextPage > this.totalPages || nextPage === this.page) {
-        return;
-      }
-
-      this.page = nextPage;
-      this.loadArticles();
-    },
-    goToArticleList(){
-      router.push('/articlelist');
-    },
-    jumpto(id){
-      router.push({ path: '/article', query: { id: id } });
-    },
-    formatDate(date){
-      if (!date) {
-        return "--";
-      }
-
-      return String(date).slice(0, 10);
-    },
-    formatViewCount(viewCount){
-      const count = Number(viewCount);
-      if (!Number.isFinite(count) || count <= 0) {
-        return "0";
-      }
-
-      if (count >= 10000) {
-        return `${(count / 10000).toFixed(count >= 100000 ? 0 : 1)}万`;
-      }
-
-      return String(count);
-    }
-  }
-}
-
+onMounted(loadArticles);
 </script>
 
 <template>
-  <div class="ArticleList-Draggable" :style="{left:position.x + 'px' , top:position.y + 'px',zIndex: zIndex}" @pointerdown = "onMouseDown" v-bind="$attrs">
+  <DraggablePanel
+    class="ArticleList-Draggable"
+    :initial-x="initialX"
+    :initial-y="initialY"
+    :width="400"
+    :height="250"
+  >
     <div class="ArticleList">
       <div class="ArticleListtitle">
         <button
@@ -172,7 +80,7 @@ export default {
           >
             <span class="HotArticleText">
               <span class="HotArticleTitle">{{ item.articleTitle }}</span>
-              <span class="HotArticleDate">{{ formatDate(item.articleDate) }}</span>
+              <span class="HotArticleDate">{{ formatArticleDate(item.articleDate, "--") }}</span>
             </span>
             <span class="HotArticleViews">{{ formatViewCount(item.viewCount) }} 浏览</span>
           </button>
@@ -210,15 +118,12 @@ export default {
         </div>
       </div>
     </div>
-  </div>
+  </DraggablePanel>
 </template>
 
 <style scoped lang="scss">
 .ArticleList-Draggable{
-  position: absolute;
-  cursor:move;
-  width: 400px;
-  height: 250px;
+  // 浮窗定位和拖拽行为统一由 DraggablePanel 管理，这里只保留文章卡片外观。
   background-color: rgba(0,0,0,.88);
   box-shadow: 0 0 15px #000000;
 }

@@ -27,33 +27,25 @@
       </div>
     </div>
 
-    <!-- 分页 -->
-    <div class="pagination-box">
-      <el-pagination
-          background
-          layout="total, prev, pager, next"
-          :total="total"
-          :page-size="pageSize"
-          :current-page="page"
-          @current-change="handlePageChange"
-      />
-    </div>
+    <ArticlePagination
+      :total="total"
+      :page-size="pageSize"
+      :current-page="page"
+      @current-change="handlePageChange"
+    ></ArticlePagination>
   </div>
 </template>
 
 <script setup>
-import { nextTick, ref, onMounted } from "vue";
-import request from "@/utils/request";
-import {useRouter} from "vue-router";
+import { nextTick, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.jpg";
 import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.jpg";
+import ArticlePagination from "@/components/common/ArticlePagination.vue";
+import { usePagedArticles } from "@/composables/usePagedArticles";
 import { getAppScrollTop, setAppScrollTop } from "@/utils/appScroll";
 
 const router = useRouter();
-const articles = ref([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = ref(10);
 const fallbackCovers = [fallbackCoverOne, fallbackCoverTwo];
 const ARTICLE_LIST_SCROLL_STATE_KEY = "articleListScrollState";
 
@@ -63,6 +55,29 @@ const goToNotFound = () => {
   // 列表页参数或页码越界时进入错误页，正常第一页空列表不算错误。
   router.replace("/404");
 };
+
+const {
+  articles,
+  total,
+  page,
+  pageSize,
+  loadArticles,
+  changePage,
+  formatArticleDate,
+} = usePagedArticles({
+  pageSize: 10,
+  validatePageResult: true,
+  onInvalidPageResult: goToNotFound,
+  onLoadError(error) {
+    if (isNotFoundStatus(error)) {
+      goToNotFound();
+      return false;
+    }
+
+    console.error("Get article_list fail:", error);
+    return false;
+  },
+});
 
 const waitForPagePaint = async () => {
   await nextTick();
@@ -105,65 +120,10 @@ const saveScrollState = () => {
   );
 };
 
-const loadArticles = async () => {
-  try {
-    const res = await request.get("/public/get_article_list", {
-      params: {
-        page: page.value,   // 后端会自动 -1
-        size: pageSize.value,
-      }
-    });
-
-    const data = res.data;
-    const content = data?.content;
-    const totalElements = Number(data?.totalElements);
-    const currentPage = Number(data?.number);
-
-    if (!Array.isArray(content)
-        || !Number.isFinite(totalElements)
-        || totalElements < 0
-        || !Number.isFinite(currentPage)
-        || currentPage < 1) {
-      goToNotFound();
-      return false;
-    }
-
-    const maxPage = totalElements > 0
-        ? Math.ceil(totalElements / pageSize.value)
-        : 1;
-
-    if (totalElements > 0 && page.value > maxPage) {
-      goToNotFound();
-      return false;
-    }
-
-    articles.value = content;
-    total.value = totalElements;
-    // 后端 PageResult.number 已经是 Element Plus 分页需要的 1 起始页码。
-    page.value = currentPage;
-    return true;
-  }catch (error){
-    if (isNotFoundStatus(error)) {
-      goToNotFound();
-      return false;
-    }
-
-    console.error("Get article_list fail:",error);
-    return false;
-  }
-};
-
 const jumpto = (id) =>{
   saveScrollState();
   router.push({ path: '/article', query: { id: id } })
 }
-
-const formatArticleDate = date => {
-  if (!date) return "未知日期";
-
-  const dateText = String(date);
-  return dateText.includes("T") ? dateText.split("T")[0] : dateText.slice(0, 10);
-};
 
 const getFallbackCoverIndex = (item, index) => {
   const numericId = Number.parseInt(item?.id, 10);
@@ -187,8 +147,7 @@ const getCoverUrl = (item, index) => {
 };
 
 const handlePageChange = (newPage) => {
-  page.value = newPage;
-  loadArticles();
+  changePage(newPage);
 };
 
 onMounted(async () => {
@@ -326,49 +285,6 @@ onMounted(async () => {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-}
-
-.pagination-box {
-  display: flex;
-  justify-content: center;
-  padding-top: 4px;
-}
-
-.pagination-box :deep(.el-pagination) {
-  --el-pagination-bg-color: rgba(67, 72, 81, 0.92);
-  --el-pagination-button-color: rgba(255, 255, 255, 0.78);
-  --el-pagination-button-disabled-bg-color: rgba(67, 72, 81, 0.44);
-  --el-pagination-button-disabled-color: rgba(255, 255, 255, 0.28);
-  --el-pagination-hover-color: #f3ff00;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.pagination-box :deep(.el-pagination__total),
-.pagination-box :deep(.el-pagination button),
-.pagination-box :deep(.el-pager li) {
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.pagination-box :deep(.el-pagination.is-background .btn-prev),
-.pagination-box :deep(.el-pagination.is-background .btn-next),
-.pagination-box :deep(.el-pagination.is-background .el-pager li) {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(67, 72, 81, 0.92);
-  border-radius: 4px;
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.22);
-}
-
-.pagination-box :deep(.el-pagination.is-background .el-pager li.is-active) {
-  background-color: #f3ff00;
-  border-color: #f3ff00;
-  color: #1f2329;
-}
-
-.pagination-box :deep(.el-pagination.is-background .btn-prev:not(:disabled):hover),
-.pagination-box :deep(.el-pagination.is-background .btn-next:not(:disabled):hover),
-.pagination-box :deep(.el-pagination.is-background .el-pager li:not(.is-active):hover) {
-  border-color: rgba(243, 255, 0, 0.56);
-  color: #f3ff00;
 }
 
 @media (max-width: 640px) {

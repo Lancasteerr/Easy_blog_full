@@ -6,7 +6,7 @@
 
       <div class="abstract">{{ item.articleAbstract }}</div>
 
-      <div class="date">{{ item.articleDate.slice(0, 10) }}</div>
+      <div class="date">{{ formatArticleDate(item.articleDate) }}</div>
 
     <!-- 操作按钮区域 -->
     <div class="action-buttons">
@@ -34,57 +34,45 @@
     <div class="divider"></div>
   </div>
 
-    <!-- 分页 -->
-    <div class="pagination-box">
-      <el-pagination
-          background
-          layout="total, prev, pager, next"
-          :total="total"
-          :page-size="pageSize"
-          :current-page="page"
-          @current-change="handlePageChange"
-      />
-    </div>
+    <ArticlePagination
+      :total="total"
+      :page-size="pageSize"
+      :current-page="page"
+      @current-change="handlePageChange"
+    ></ArticlePagination>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { onMounted } from "vue";
 import request from "@/utils/request";
-import {useRouter} from "vue-router";
+import { useRouter } from "vue-router";
+import ArticlePagination from "@/components/common/ArticlePagination.vue";
+import { usePagedArticles } from "@/composables/usePagedArticles";
 
 const router = useRouter();
-const articles = ref([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = ref(10);
-
-const loadArticles = async () => {
-  try {
-    const res = await request.get("/public/get_article_list", {
-      params: {
-        page: page.value,   // 后端会自动 -1
-        size: pageSize.value,
-      }
-    });
-
-    const data = res.data;
-    articles.value = data.content;
-    total.value = data.totalElements;
-    // 后端返回的 PageResult.number 已经是 1 起始页码，直接同步给分页组件。
-    page.value = data.number;
-  }catch (error){
-    console.error("Get article_list fail:",error);
-  }
-};
+const {
+  articles,
+  total,
+  page,
+  pageSize,
+  loadArticles,
+  changePage,
+  formatArticleDate,
+} = usePagedArticles({
+  pageSize: 10,
+  onLoadError(error) {
+    console.error("Get article_list fail:", error);
+    return false;
+  },
+});
 
 const jumpto = (id) =>{
   router.push({ path: '/article', query: { id: id } })
 }
 
 const handlePageChange = (newPage) => {
-  page.value = newPage;
-  loadArticles();
+  changePage(newPage);
 };
 
 onMounted(loadArticles);
@@ -217,49 +205,6 @@ const editArticle = (id) =>{
 /* 分隔线 */
 .divider {
   display: none;
-}
-
-.pagination-box {
-  display: flex;
-  justify-content: center;
-  padding-top: 4px;
-}
-
-.pagination-box :deep(.el-pagination) {
-  --el-pagination-bg-color: rgba(67, 72, 81, 0.92);
-  --el-pagination-button-color: rgba(255, 255, 255, 0.78);
-  --el-pagination-button-disabled-bg-color: rgba(67, 72, 81, 0.44);
-  --el-pagination-button-disabled-color: rgba(255, 255, 255, 0.28);
-  --el-pagination-hover-color: #f3ff00;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.pagination-box :deep(.el-pagination__total),
-.pagination-box :deep(.el-pagination button),
-.pagination-box :deep(.el-pager li) {
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.pagination-box :deep(.el-pagination.is-background .btn-prev),
-.pagination-box :deep(.el-pagination.is-background .btn-next),
-.pagination-box :deep(.el-pagination.is-background .el-pager li) {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(67, 72, 81, 0.92);
-  border-radius: 4px;
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.22);
-}
-
-.pagination-box :deep(.el-pagination.is-background .el-pager li.is-active) {
-  background-color: #f3ff00;
-  border-color: #f3ff00;
-  color: #1f2329;
-}
-
-.pagination-box :deep(.el-pagination.is-background .btn-prev:not(:disabled):hover),
-.pagination-box :deep(.el-pagination.is-background .btn-next:not(:disabled):hover),
-.pagination-box :deep(.el-pagination.is-background .el-pager li:not(.is-active):hover) {
-  border-color: rgba(243, 255, 0, 0.56);
-  color: #f3ff00;
 }
 
 @media (max-width: 640px) {
