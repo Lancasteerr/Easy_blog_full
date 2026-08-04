@@ -2,7 +2,6 @@ import {createRouter, createWebHistory} from 'vue-router'
 
 // 路由级懒加载，避免后台编辑器、Element Plus 组件和 Tiptap 过早进入首屏主包。
 const MyHome = () => import('@/components/MyHome.vue')
-const MyAbout = () => import("@/components/MyAbout.vue");
 const UserLogin = () => import("@/components/UserLogin.vue");
 // 注册页已关闭，暂不引入注册组件。
 // const UserRegister = () => import("@/components/UserRegister.vue");
@@ -16,11 +15,6 @@ const routes = [
     {   path :'/',
         name : 'MyHome',
         component: MyHome
-    },
-    {
-        path: '/about',
-        name: 'MyAbout',
-        component: MyAbout
     },
     {
       path:'/neko-panel/manage',

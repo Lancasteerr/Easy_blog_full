@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import request from './utils/request'
 import {
     ElButton,
     ElCard,
@@ -51,9 +50,6 @@ const elementPlusComponents = [
 
 // 创建应用实例
 const app = createApp(App)
-
-// 全局注册 axios
-app.config.globalProperties.$axios = request
 
 // 只注册当前模板实际使用的 Element Plus 组件，降低生产包体积。
 elementPlusComponents.forEach(component => {
