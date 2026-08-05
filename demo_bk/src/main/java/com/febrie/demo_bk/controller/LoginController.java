@@ -4,10 +4,13 @@ import com.febrie.demo_bk.annotation.OperationLoger;
 import com.febrie.demo_bk.pojo.User;
 import com.febrie.demo_bk.result.Result;
 import com.febrie.demo_bk.service.LoginAttemptService;
+import com.febrie.demo_bk.service.TokenBlacklistService;
 import com.febrie.demo_bk.service.UserService;
 import com.febrie.demo_bk.util.JwtUtil;
 import com.febrie.demo_bk.util.RequestUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -24,17 +27,21 @@ public class LoginController {
 
     private final LoginAttemptService loginAttemptService;
 
+    private final TokenBlacklistService tokenBlacklistService;
+
     private final JwtUtil jwtUtil;
 
     public LoginController(
             UserService userService,
             PasswordEncoder passwordEncoder,
             LoginAttemptService loginAttemptService,
+            TokenBlacklistService tokenBlacklistService,
             JwtUtil jwtUtil
     ){
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.loginAttemptService = loginAttemptService;
+        this.tokenBlacklistService = tokenBlacklistService;
         this.jwtUtil = jwtUtil;
     }
 
@@ -99,10 +106,38 @@ public class LoginController {
         return ResponseEntity.ok(new Result(200,token));
     }
 
+    //退出登录时废除当前请求携带的JWT，避免旧token在过期前继续访问后台接口。
+    @PostMapping(value = "api/admin/logout")
+    @ResponseBody
+    @OperationLoger(module = "退出登录")
+    public ResponseEntity<Result> logout(HttpServletRequest request) {
+        String token = extractBearerToken(request);
+
+        if (token == null) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(new Result(401));
+        }
+
+        tokenBlacklistService.revoke(token);
+
+        return ResponseEntity.ok(new Result(200));
+    }
+
     private ResponseEntity<Result> badLoginResult() {
         // 登录失败仍保留旧的 code 字段，前端只需要从 HTTP 400 分支读取即可。
         return ResponseEntity
                 .badRequest()
                 .body(new Result(400));
+    }
+
+    private String extractBearerToken(HttpServletRequest request) {
+        String authorization = request.getHeader("Authorization");
+
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return null;
+        }
+
+        return authorization.substring(7);
     }
 }

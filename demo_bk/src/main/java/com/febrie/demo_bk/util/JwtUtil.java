@@ -12,6 +12,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * JWT生成和解析
@@ -38,9 +39,11 @@ public class JwtUtil {
     //生成JWT
     public String generateToken(String username){
         return Jwts.builder()
+                // jti用于唯一标识本次签发的JWT，退出登录时可精确废除当前token。
+                .id(UUID.randomUUID().toString())
                 .subject(username)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000))
+                .expiration(new Date(System.currentTimeMillis() + 12 * 60 * 60 * 1000))
                 .signWith(key,algorithm)
                 .compact();
     }
@@ -69,7 +72,23 @@ public class JwtUtil {
 
     //判断token是否过期
     public boolean isTokenExpired(String token) {
-        return parsePayload(token).getExpiration().before(new Date());//比较过期时间
+        return isTokenExpired(parsePayload(token));
+    }
+
+    //判断已解析的Claims是否过期，避免过滤器重复解析token。
+    public boolean isTokenExpired(Claims claims) {
+        Date expiration = claims.getExpiration();
+        return expiration == null || expiration.before(new Date());//比较过期时间
+    }
+
+    //获取token距离过期还剩多少毫秒，用于设置Redis黑名单自动过期时间。
+    public long getRemainingMillis(Claims claims) {
+        Date expiration = claims.getExpiration();
+        if (expiration == null) {
+            return 0;
+        }
+
+        return Math.max(0, expiration.getTime() - System.currentTimeMillis());
     }
 
     private byte[] resolveSecretBytes(String secret) {

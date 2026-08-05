@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -53,7 +54,7 @@ public class SecurityConfig {
                             config.setMaxAge(3600L);
                             return config;
                         }))
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)//csrf disable
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/files/**").permitAll()
@@ -81,8 +82,8 @@ public class SecurityConfig {
                                         "没有权限访问该资源"
                                 ))
                 )
-                .formLogin(form->form.disable())//禁用默认登录页
-                .httpBasic(basic->basic.disable())//禁用http basic
+                .formLogin(AbstractHttpConfigurer::disable)//禁用默认登录页
+                .httpBasic(AbstractHttpConfigurer::disable)//禁用http basic
 
                 // 添加自定义的 JWT 认证过滤器，确保在 UsernamePasswordAuthenticationFilter 之前执行
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

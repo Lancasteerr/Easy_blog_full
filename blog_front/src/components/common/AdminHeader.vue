@@ -1,5 +1,6 @@
 <script setup>
 import router from "@/router";
+import request from "@/utils/request";
 
 defineOptions({
   name: "AdminHeader",
@@ -23,9 +24,16 @@ const goToHomepage = () => {
   router.push("/");
 };
 
-const logout = () => {
-  localStorage.removeItem("token");
-  router.push({ name: "MyHome" });
+const logout = async () => {
+  try {
+    await request.post("/admin/logout");
+  } catch (error) {
+    // 后端注销失败时仍退出当前浏览器，避免用户被异常请求卡在后台页面。
+    console.warn("退出登录请求失败:", error);
+  } finally {
+    localStorage.removeItem("token");
+    router.push({ name: "MyHome" });
+  }
 };
 
 const handleAction = action => {
