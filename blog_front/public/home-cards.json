@@ -3,23 +3,23 @@
     "title": "关于我",
     "subtitle": "ABOUT ME",
     "paragraphs": [
-      "这里写你的个人介绍，可以稍微长一点。",
-      "例如技术方向、学习经历、博客定位和你正在关注的内容。"
+      "一枚软件工程专业的学生，正在认真学习后端开发和 AI 应用相关技术。",
+      "这个博客，用于记录遇到的问题、解决问题的过程，以及那些值得反复回看的知识点。"
     ]
   },
   "workExp": {
-    "title": "工作履历",
-    "subtitle": "CAREER",
+    "title": "博客内容",
+    "subtitle": "BLOG CONTENT",
     "paragraphs": [
-      "这里写项目经历、实习经历或学习实践。",
-      "可以按时间顺序简要描述重点。"
+      "这里会记录我学习后端开发以及 AI Agent 相关内容时遇到的困惑与解决方法。",
+      "这里也会整理我学习算法时刷过的 OJ 题解，尽量用清晰的思路和简洁的代码把问题讲明白。",
+      "除此之外，我也会整理和转载有意思的技术文章，希望这些记录能帮助到同样在学习路上的人。"
     ]
   },
   "contact": {
     "title": "联系我",
     "subtitle": "CONTACT ME",
     "items": [
-      "Email: example@example.com",
       "GitHub: github.com/Lancasteerr"
     ]
   }
