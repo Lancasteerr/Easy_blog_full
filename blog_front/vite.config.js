@@ -23,6 +23,13 @@ export default defineConfig({
           }
 
           if (
+            id.includes('highlight.js')
+            || id.includes('lowlight')
+          ) {
+            return 'highlight';
+          }
+
+          if (
             id.includes('@tiptap')
             || id.includes('prosemirror')
           ) {

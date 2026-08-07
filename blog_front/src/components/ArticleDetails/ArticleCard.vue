@@ -1,7 +1,8 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import DOMPurify from "dompurify";
 import { getAppScrollContainer } from "@/utils/appScroll";
+import { highlightArticleCode } from "@/utils/codeHighlight";
 
 const props = defineProps({
   articleHtml: {
@@ -19,6 +20,7 @@ const safeArticleHtml = computed(() =>
 
 // 阅读进度条
 const scrollProgress = ref(0);
+const articleBodyRef = ref(null);
 let scrollContainer = null;
 
 // 更新阅读进度条
@@ -36,8 +38,15 @@ onMounted(async () => {
   // 主页面滚动已交给 App.vue 中的 el-scrollbar，这里监听统一封装后的真实滚动容器。
   scrollContainer = getAppScrollContainer();
   scrollContainer?.addEventListener("scroll", updateProgress, { passive: true });
+  highlightArticleCode(articleBodyRef.value);
   updateProgress();
 });
+
+watch(safeArticleHtml, async () => {
+  // v-html 更新完成后再上色，保证旧文章和新文章都能按当前 DOM 结构处理代码块。
+  await nextTick();
+  highlightArticleCode(articleBodyRef.value);
+}, { flush: "post" });
 
 onBeforeUnmount(() => {
   scrollContainer?.removeEventListener("scroll", updateProgress);
@@ -52,7 +61,7 @@ onBeforeUnmount(() => {
     <div class="article-container">
       <el-card class="article-card">
         <!-- 正文 -->
-        <div class="markdown-body" v-html="safeArticleHtml"></div>
+        <div ref="articleBodyRef" class="markdown-body" v-html="safeArticleHtml"></div>
 
       </el-card>
     </div>
@@ -127,7 +136,7 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 
-.markdown-body :deep(code) {
+.markdown-body :deep(:not(pre) > code) {
   color: #f3f7fb;
   background-color: rgba(18, 18, 18, 0.34);
 }
@@ -136,6 +145,12 @@ onBeforeUnmount(() => {
   color: #d6deeb;
   background-color: rgba(24, 26, 30, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.markdown-body :deep(pre code) {
+  padding: 0;
+  color: inherit;
+  background: transparent;
 }
 
 .markdown-body :deep(table tr) {

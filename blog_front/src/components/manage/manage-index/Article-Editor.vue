@@ -2,10 +2,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { EditorContent, useEditor } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Image from "@tiptap/extension-image";
 import request from "@/utils/request";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { CODE_LANGUAGE_OPTIONS, codeLowlight } from "@/utils/codeHighlight";
 
 const fileInput = ref(null);
 const coverFileInput = ref(null);
@@ -17,6 +19,8 @@ const sessionUploadedCoverId = ref(null);
 const coverUploading = ref(false);
 const route = useRoute();
 const router = useRouter();
+// Tiptap 编辑器实例不是普通响应式对象，使用计数器驱动工具栏状态重新计算。
+const editorStateTick = ref(0);
 
 const article = reactive({
   id: null,
@@ -118,10 +122,16 @@ const deleteRemovedImages = async currentImages => {
   await Promise.all(removedIds.map(deleteImageById));
 };
 
+const refreshEditorState = () => {
+  editorStateTick.value += 1;
+};
+
 const editor = useEditor({
   content: "<p></p>",
   extensions: [
     StarterKit.configure({
+      // 关闭 StarterKit 内置代码块，改用带语法高亮能力的 CodeBlockLowlight。
+      codeBlock: false,
       link: {
         openOnClick: false,
         defaultProtocol: "https",
@@ -130,6 +140,12 @@ const editor = useEditor({
           rel: "noopener noreferrer nofollow",
         },
       },
+    }),
+    CodeBlockLowlight.configure({
+      lowlight: codeLowlight,
+      defaultLanguage: null,
+      enableTabIndentation: true,
+      tabSize: 2,
     }),
     ImageWithFileId.configure({
       allowBase64: false,
@@ -142,13 +158,38 @@ const editor = useEditor({
     },
   },
   onUpdate: ({ editor }) => {
+    refreshEditorState();
     deleteRemovedImages(collectImages(editor.getJSON()));
   },
+  onSelectionUpdate: refreshEditorState,
+  onTransaction: refreshEditorState,
 });
 
-const canUndo = computed(() => editor.value?.can().undo() ?? false);
-const canRedo = computed(() => editor.value?.can().redo() ?? false);
-const isEmpty = computed(() => editor.value?.isEmpty ?? true);
+const canUndo = computed(() => {
+  editorStateTick.value;
+  return editor.value?.can().undo() ?? false;
+});
+const canRedo = computed(() => {
+  editorStateTick.value;
+  return editor.value?.can().redo() ?? false;
+});
+const isEmpty = computed(() => {
+  editorStateTick.value;
+  return editor.value?.isEmpty ?? true;
+});
+const isCodeBlockActive = computed(() => {
+  editorStateTick.value;
+  return editor.value?.isActive("codeBlock") ?? false;
+});
+const currentCodeLanguage = computed(() => {
+  editorStateTick.value;
+
+  if (!isCodeBlockActive.value) {
+    return "";
+  }
+
+  return editor.value?.getAttributes("codeBlock").language || "";
+});
 
 const setEditorContent = content => {
   if (!editor.value) return;
@@ -161,6 +202,17 @@ const setEditorContent = content => {
 
   contentImageIds.value = collectImages(editor.value.getJSON()).ids;
   boundImageIds.value = new Set(contentImageIds.value);
+  refreshEditorState();
+};
+
+const setCodeBlockLanguage = event => {
+  if (!editor.value || !isCodeBlockActive.value) return;
+
+  const language = event.target.value || null;
+
+  // 语言写入 codeBlock 属性后，保存的 HTML 会带上 language-* class，阅读页可直接使用。
+  editor.value.chain().focus().updateAttributes("codeBlock", { language }).run();
+  refreshEditorState();
 };
 
 const parseJsonContent = value => {
@@ -549,6 +601,21 @@ onBeforeUnmount(() => {
           >
             Code
           </button>
+          <select
+            class="toolbar-select code-language-select"
+            :value="currentCodeLanguage"
+            :disabled="!isCodeBlockActive"
+            title="代码语言"
+            @change="setCodeBlockLanguage"
+          >
+            <option
+              v-for="language in CODE_LANGUAGE_OPTIONS"
+              :key="language.value || 'auto'"
+              :value="language.value"
+            >
+              {{ language.label }}
+            </option>
+          </select>
         </div>
 
         <div class="toolbar-group">
@@ -768,6 +835,33 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.toolbar-select {
+  height: 32px;
+  min-width: 120px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: #fff;
+  color: #303133;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.toolbar-select:focus {
+  outline: none;
+  border-color: #1677d2;
+}
+
+.toolbar-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  background: #eef0f3;
+}
+
+.code-language-select {
+  flex: 0 0 128px;
 }
 
 .toolbar-button:hover,
