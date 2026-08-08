@@ -39,8 +39,8 @@
 <script setup>
 import { nextTick, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.jpg";
-import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.jpg";
+import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.webp";
+import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.webp";
 import ArticlePagination from "@/components/common/ArticlePagination.vue";
 import { usePagedArticles } from "@/composables/usePagedArticles";
 import { getAppScrollTop, setAppScrollTop } from "@/utils/appScroll";

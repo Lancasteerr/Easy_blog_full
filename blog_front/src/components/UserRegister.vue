@@ -58,7 +58,7 @@
   //box-shadow: 0 0 15px #cac6c6;
 }
 #poster{
-  background-image: url("../assets/loginbg.png");
+  background-image: url("../assets/loginbg.webp");
   width: 100%;
   height: 100%;
   position: fixed;

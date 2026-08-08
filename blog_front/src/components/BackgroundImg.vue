@@ -1,9 +1,9 @@
 <script>
-import bg1 from "@/assets/BackgroundImgs/1.jpg";
-import bg2 from "@/assets/BackgroundImgs/2.jpg";
-import bg3 from "@/assets/BackgroundImgs/3.jpg";
-import bg4 from "@/assets/BackgroundImgs/4.jpg";
-import bg5 from "@/assets/BackgroundImgs/5.jpg";
+import bg1 from "@/assets/BackgroundImgs/1.webp";
+import bg2 from "@/assets/BackgroundImgs/2.webp";
+import bg3 from "@/assets/BackgroundImgs/3.webp";
+import bg4 from "@/assets/BackgroundImgs/4.webp";
+import bg5 from "@/assets/BackgroundImgs/5.webp";
 
 export default {
   name: "BackgroundImg",

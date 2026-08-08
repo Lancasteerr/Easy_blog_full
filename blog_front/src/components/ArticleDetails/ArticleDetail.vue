@@ -5,8 +5,8 @@ import ArticleCard from "@/components/ArticleDetails/ArticleCard.vue";
 import CommonFooterLayout from "@/components/Footer/CommonFooterLayout.vue";
 import ArticleHeader from "@/components/ArticleDetails/ArticleHeader.vue";
 import request from "@/utils/request";
-import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.jpg";
-import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.jpg";
+import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.webp";
+import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.webp";
 import { scrollAppToTop } from "@/utils/appScroll";
 
 const route = useRoute();
