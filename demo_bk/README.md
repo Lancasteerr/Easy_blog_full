@@ -122,12 +122,9 @@ java -jar target/blog-backend.jar
 
 ### Roadmap
 
--  PV count
 -  Comment system
 -  API documentation (Swagger / OpenAPI)
--  Rate limiting
-
-[Frontend](https://github.com/Lancasteerr/Easy_blog_frontend)
+-  Search / tag function
 
 ### License
 
@@ -248,15 +245,8 @@ java -jar target/blog-backend.jar
 - 统一使用 JSON 返回数据
 - 分页接口不直接暴露 `Page` 对象，仅返回必要字段
 
-### Roadmap
+### TODO List
 
--  浏览量统计
 -  评论系统
 -  Swagger / OpenAPI 文档
--  接口访问限流
-
-[前端仓库](https://github.com/Lancasteerr/Easy_blog_frontend)
-
-### License
-
-MIT License
+-  搜索 / tag功能
