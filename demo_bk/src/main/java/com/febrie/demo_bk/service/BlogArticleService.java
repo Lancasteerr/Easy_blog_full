@@ -1,10 +1,9 @@
 package com.febrie.demo_bk.service;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONArray;
-import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.febrie.demo_bk.dao.ArticleViewStatDAO;
 import com.febrie.demo_bk.dao.BlogArticleDAO;
 import com.febrie.demo_bk.dto.ArticleDTO;
@@ -43,6 +42,8 @@ public class BlogArticleService {
     private FileService fileService;
 
     private ArticleViewServiceImpl articleViewService;
+
+    private ObjectMapper objectMapper;
 
     /**
      * 文章详细缓存 Key
@@ -259,7 +260,7 @@ public class BlogArticleService {
 
         if (articleContentJson != null && !articleContentJson.isBlank()) {
             try {
-                collectImageIds(JSON.parseObject(articleContentJson), imageIds);
+                collectImageIds(objectMapper.readTree(articleContentJson), imageIds);
             } catch (Exception ignored) {
             }
         }
@@ -274,29 +275,47 @@ public class BlogArticleService {
         return imageIds;
     }
 
-    private void collectImageIds(JSONObject node, Set<Long> imageIds) {
+    private void collectImageIds(JsonNode node, Set<Long> imageIds) {
         if (node == null) {
             return;
         }
 
-        if ("image".equals(node.getString("type"))) {
-            JSONObject attrs = node.getJSONObject("attrs");
-            if (attrs != null) {
-                Long fileId = attrs.getLong("fileId");
-                if (fileId != null) {
-                    imageIds.add(fileId);
-                }
+        if ("image".equals(node.path("type").asText())) {
+            JsonNode fileIdNode = node.path("attrs").path("fileId");
+            Long fileId = parseFileId(fileIdNode);
+            if (fileId != null) {
+                imageIds.add(fileId);
             }
         }
 
-        JSONArray content = node.getJSONArray("content");
-        if (content == null) {
+        JsonNode content = node.path("content");
+        if (!content.isArray()) {
             return;
         }
 
-        for (int i = 0; i < content.size(); i++) {
-            collectImageIds(content.getJSONObject(i), imageIds);
+        for (JsonNode child : content) {
+            collectImageIds(child, imageIds);
         }
+    }
+
+    private Long parseFileId(JsonNode fileIdNode) {
+        if (fileIdNode == null || fileIdNode.isNull()) {
+            return null;
+        }
+
+        if (fileIdNode.isIntegralNumber()) {
+            return fileIdNode.asLong();
+        }
+
+        if (fileIdNode.isTextual()) {
+            try {
+                return Long.parseLong(fileIdNode.asText());
+            } catch (NumberFormatException ignored) {
+                // 非数字字符串不是有效文件ID，保持原有容错逻辑忽略即可。
+            }
+        }
+
+        return null;
     }
 
     /**

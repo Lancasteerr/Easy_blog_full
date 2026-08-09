@@ -1,17 +1,26 @@
 package com.febrie.demo_bk.util;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONArray;
-import com.alibaba.fastjson2.JSONObject;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
+@Component
+@RequiredArgsConstructor
 public class LogParamUtil {
+
+    private final ObjectMapper objectMapper;
 
     /**
      * 敏感字段
@@ -21,14 +30,14 @@ public class LogParamUtil {
                     "password",
                     "pwd",
                     "token",
-                    "accessToken",
-                    "refreshToken",
+                    "accesstoken",
+                    "refreshtoken",
                     "authorization",
-                    "idCard",
-                    "articleAbstract",
-                    "articleContentHtml",
-                    "articleTitle",
-                    "articleContentJson"
+                    "idcard",
+                    "articleabstract",
+                    "articlecontenthtml",
+                    "articletitle",
+                    "articlecontentjson"
             ));
 
     /**
@@ -54,62 +63,57 @@ public class LogParamUtil {
     /**
      * 递归脱敏
      */
-    private static void maskSensitive(JSONObject json){
-
-        for(String key : json.keySet()){
-
-            Object value = json.get(key);
-
-            /*
-             * 当前字段敏感
-             */
-            if(SENSITIVE_FIELDS.contains(key)){
-
-                json.put(
-                        key,
-                        "******"
-                );
-
-                continue;
-            }
-
-            /*
-             * value为嵌套JSON对象
-             */
-            if(value instanceof JSONObject obj){
-
-                maskSensitive(obj);
-
-            }
-
-            /*
-             * value为数组
-             */
-            if(value instanceof JSONArray array){
-
-                for(Object item : array){
-
-                    if(item instanceof JSONObject obj){
-
-                        maskSensitive(obj);
-                    }
-                }
-
-            }
+    private static void maskSensitive(JsonNode node){
+        if(node == null || node.isNull()){
+            return;
         }
+
+        if(node instanceof ArrayNode array){
+            for(JsonNode item : array){
+                maskSensitive(item);
+            }
+            return;
+        }
+
+        if(!(node instanceof ObjectNode json)){
+            return;
+        }
+
+        json.fieldNames()
+                .forEachRemaining(key -> {
+                    JsonNode value = json.get(key);
+
+                    /*
+                     * 字段名统一转小写比较，避免大小写变化绕过日志脱敏。
+                     */
+                    if(SENSITIVE_FIELDS.contains(key.toLowerCase(Locale.ROOT))){
+
+                        json.put(
+                                key,
+                                "******"
+                        );
+
+                        return;
+                    }
+
+                    /*
+                     * 递归处理嵌套对象和数组，避免深层敏感字段进入操作日志。
+                     */
+                    maskSensitive(value);
+                });
     }
 
 
     /**
      * 解析请求参数
      */
-    public static String parse(Object[] args) {
+    public String parse(Object[] args) {
 
         if(args == null || args.length == 0) {
             return "";
         }
 
-        JSONArray array = new JSONArray();
+        ArrayNode array = objectMapper.createArrayNode();
 
         for(Object arg : args) {
 
@@ -121,15 +125,20 @@ public class LogParamUtil {
             try{
 
                 /*
-                 * 转JSON对象
-                 * 不修改原始参数对象
+                 * 使用Jackson树模型转换参数，不修改原始参数对象。
                  */
-                JSONObject json =
-                        (JSONObject) JSON.toJSON(arg);//toJSON将java对象转换为JSON结构，toJSONString将java对象转换为json字符串，parseObject将json字符串转换为json对象或java对象
+                JsonNode json = objectMapper.valueToTree(arg);
 
                 maskSensitive(json);
 
-                array.add(json);
+                if(json == null || json.isNull()){
+                    array.addNull();
+                } else if(json.isContainerNode()){
+                    array.add(json);
+                } else {
+                    // 普通标量按字符串记录，尽量保持原有日志展示习惯。
+                    array.add(String.valueOf(arg));
+                }
 
             }catch (Exception e){
                 /*
@@ -142,7 +151,13 @@ public class LogParamUtil {
 
         }
 
-        String res = array.toJSONString();
+        String res;
+        try {
+            res = objectMapper.writeValueAsString(array);
+        } catch (JsonProcessingException e) {
+            // 极端情况下序列化失败时仍返回安全的字符串，避免影响业务方法。
+            res = "[]";
+        }
 
         //长度限制
         if (res.length() > MAX_LENGTH){

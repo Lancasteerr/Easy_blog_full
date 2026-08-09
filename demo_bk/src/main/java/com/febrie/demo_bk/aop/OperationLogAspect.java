@@ -22,10 +22,13 @@ import java.time.LocalDateTime;
 public class OperationLogAspect {
 
     private final OperationLogDAO operationLogDAO;
+    private final LogParamUtil logParamUtil;
 
     @Autowired
-    public OperationLogAspect(OperationLogDAO operationLogDAO){
+    public OperationLogAspect(OperationLogDAO operationLogDAO,
+                              LogParamUtil logParamUtil){
         this.operationLogDAO = operationLogDAO;
+        this.logParamUtil = logParamUtil;
     }
 
     //定义切点(哪个自定义注解需要注入代码)
@@ -92,7 +95,7 @@ public class OperationLogAspect {
         log.setIp(RequestUtil.getIpAddress());
 
         log.setRequestParam(
-                LogParamUtil.parse(joinPoint.getArgs())
+                logParamUtil.parse(joinPoint.getArgs())
         );
 
         log.setCreateTime(LocalDateTime.now());

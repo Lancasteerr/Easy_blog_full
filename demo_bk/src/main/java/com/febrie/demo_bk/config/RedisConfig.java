@@ -16,18 +16,21 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
     @Bean
     public RedisTemplate<String,Object> redisTemplate(
-            RedisConnectionFactory connectionFactory) {
-        RedisTemplate template = new RedisTemplate<>();
+            RedisConnectionFactory connectionFactory,
+            ObjectMapper objectMapper) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        //ObjectMapper
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        /*
+         * Redis序列化复用Spring管理的ObjectMapper，避免HTTP与缓存JSON配置不一致。
+         */
+        ObjectMapper redisObjectMapper = objectMapper.copy();
+        redisObjectMapper.registerModule(new JavaTimeModule());
+        redisObjectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         //json序列化
         Jackson2JsonRedisSerializer<Object> serializer =
-                new Jackson2JsonRedisSerializer<>(objectMapper,Object.class);
+                new Jackson2JsonRedisSerializer<>(redisObjectMapper,Object.class);
 
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);

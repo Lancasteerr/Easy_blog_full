@@ -1,8 +1,6 @@
 package com.febrie.demo_bk.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -16,8 +14,9 @@ import java.util.concurrent.TimeUnit;
 @AllArgsConstructor
 public class RedisService {
 
-    private final RedisTemplate redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private  final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
 
     public void set(String key, String value, long timeout, TimeUnit unit){
         stringRedisTemplate.opsForValue().set(key,value,timeout,unit);
@@ -44,11 +43,9 @@ public class RedisService {
     //根据key获得缓存
     public <T> T getObject(String key,Class<T> clazz){
         Object object = redisTemplate.opsForValue().get(key);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        return object==null?null: mapper.convertValue(object,clazz);
+        // 复用Spring统一配置的ObjectMapper，避免不同缓存读取路径出现序列化差异。
+        return object==null?null: objectMapper.convertValue(object,clazz);
     }
 
     //根据key删除缓存
