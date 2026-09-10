@@ -29,7 +29,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `article_view_stat`;
 CREATE TABLE `article_view_stat`  (
   `id` int NOT NULL AUTO_INCREMENT,
-  `article_id` int NOT NULL,
+  `article_id` int UNSIGNED NOT NULL,
   `stat_date` date NOT NULL,
   `pv` bigint NOT NULL,
   PRIMARY KEY (`id`) USING BTREE,
@@ -56,6 +56,12 @@ CREATE TABLE `blog_article`  (
   INDEX `idx_article_date_id`(`article_date` DESC, `id` DESC) USING BTREE,
   INDEX `idx_view_count_date_id`(`view_count` DESC, `article_date` DESC, `id` DESC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+
+-- 文章浏览统计依赖文章主表；删除文章时同步删除对应的每日浏览统计。
+ALTER TABLE `article_view_stat`
+  ADD CONSTRAINT `fk_article_view_stat_article`
+  FOREIGN KEY (`article_id`) REFERENCES `blog_article` (`id`)
+  ON DELETE CASCADE;
 
 -- ----------------------------
 -- Table structure for sys_file_object
