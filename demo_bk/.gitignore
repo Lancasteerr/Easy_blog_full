@@ -1,7 +1,6 @@
 HELP.md
 target/
 blog-storage/
-/src/test/
 .env
 .env.*
 !.env.example
