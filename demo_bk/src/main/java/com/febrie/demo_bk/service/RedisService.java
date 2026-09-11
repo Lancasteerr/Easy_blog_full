@@ -7,6 +7,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -48,6 +51,26 @@ public class RedisService {
         return object==null?null: objectMapper.convertValue(object,clazz);
     }
 
+    /**
+     * 批量读取同类型对象缓存，并保持传入 Key 的顺序。
+     */
+    public <T> List<T> getObjects(List<String> keys, Class<T> clazz) {
+        if (keys == null || keys.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Object> objects = redisTemplate.opsForValue().multiGet(keys);
+        if (objects == null) {
+            return Collections.nCopies(keys.size(), null);
+        }
+
+        List<T> results = new ArrayList<>(objects.size());
+        for (Object object : objects) {
+            results.add(object == null ? null : objectMapper.convertValue(object, clazz));
+        }
+        return results;
+    }
+
     //根据key删除缓存
     public boolean delete(String key){
         return redisTemplate.delete(key);
@@ -63,14 +86,6 @@ public class RedisService {
         return redisTemplate.opsForValue().increment(key);
     }
 
-    /**
-     * 序列方法：stringRedisTemplate,opsForHash
-     */
-    public Long hashStringValueIncrease(String key, String id, Long value) {
-        return  stringRedisTemplate.opsForHash()
-                .increment(key, id, value);
-    }
-
     public Map<Object, Object> getHashEntries(String key) {
         return stringRedisTemplate.opsForHash().entries(key);
     }
@@ -78,10 +93,6 @@ public class RedisService {
     //指定key设定过期时间
     public void redisSetExpire(String key, long time, TimeUnit unit){
         redisTemplate.expire(key, time, unit);
-    }
-
-    public void stringSetExpire(String key, long time, TimeUnit unit) {
-        stringRedisTemplate.expire(key, time, unit);
     }
 
     /**

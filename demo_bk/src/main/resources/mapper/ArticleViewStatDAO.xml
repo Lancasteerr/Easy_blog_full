@@ -40,6 +40,18 @@
                                  pv = #{pvCount}
     </insert>
 
+    <!-- 同一事务内锁住当天统计行，避免重复执行时重复累加总浏览量。 -->
+    <select id="selectPvForUpdate"
+            resultType="java.lang.Long">
+
+        SELECT pv
+        FROM article_view_stat
+        WHERE article_id = #{articleId}
+          AND stat_date = #{statDate}
+        FOR UPDATE
+
+    </select>
+
 
     <!-- 查询指定日期的文章浏览量 -->
     <select id="selectByStatDate"

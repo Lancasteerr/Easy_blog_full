@@ -22,6 +22,12 @@ public interface ArticleViewStatDAO extends BaseMapper<ArticleViewStat> {
     );
 
     /**
+     * 锁定某篇文章当天已落库的浏览量，供增量刷库计算 delta。
+     */
+    Long selectPvForUpdate(@Param("articleId") int articleId,
+                           @Param("statDate") String statDate);
+
+    /**
      * 查询指定日期的全部文章浏览量
      */
     List<ArticleViewStat> selectByStatDate(

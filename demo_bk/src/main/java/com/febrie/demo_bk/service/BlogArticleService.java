@@ -4,28 +4,37 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.febrie.demo_bk.dao.ArticleViewStatDAO;
 import com.febrie.demo_bk.dao.BlogArticleDAO;
 import com.febrie.demo_bk.dto.ArticleDTO;
 import com.febrie.demo_bk.dto.ArticleListDTO;
+import com.febrie.demo_bk.dto.ArticlePageIndex;
 import com.febrie.demo_bk.exception.ResourceNotFoundException;
 import com.febrie.demo_bk.pojo.BlogArticle;
 import com.febrie.demo_bk.pojo.FileObject;
 import com.febrie.demo_bk.result.PageResult;
 import com.febrie.demo_bk.service.pv.ArticleViewServiceImpl;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 @AllArgsConstructor
 public class BlogArticleService {
     private static final Pattern DATA_FILE_ID_PATTERN =
@@ -37,11 +46,11 @@ public class BlogArticleService {
 
     private RedisService redisService;
 
-    private ArticleViewStatDAO articleViewStatDAO;
-
     private FileService fileService;
 
     private ArticleViewServiceImpl articleViewService;
+
+    private ArticleIndexRedisService articleIndexRedisService;
 
     private ObjectMapper objectMapper;
 
@@ -49,16 +58,6 @@ public class BlogArticleService {
      * 文章详细缓存 Key
      */
     private static final String ARTICLE_DETAIL_CACHE_KEY = "blog:article:detail:";
-
-    /**
-     * 未排序文章列表 Key
-     */
-    private static final String DEFAULT_ARTICLE_LIST_VERSION_KEY = "blog:article:page:";
-
-    /**
-     * 按浏览量排序文章列表 Key
-     */
-    private static final String PV_DESC_ARTICLE_LIST_VERSION_KEY = "blog:article:page:hot:";
 
     /**
      * 更新文章
@@ -94,20 +93,31 @@ public class BlogArticleService {
         fileService.validateImageFiles(newFileIds);
 
         BlogArticle blogArticle = BlogArticle.toPojo(articleDTO);
-        if(articleDTO.getId() == null) {
+        boolean isNewArticle = articleDTO.getId() == null;
+        if (isNewArticle) {
+            // 浏览量只能由浏览统计任务维护，新增文章不能信任前端传入的值。
+            blogArticle.setViewCount(0L);
             blogArticleDAO.insert(blogArticle);
             articleDTO.setId(blogArticle.getId());
         } else {
+            // 管理端编辑不得覆盖已累计的浏览量。
+            blogArticle.setViewCount(oldArticle.getViewCount());
             blogArticleDAO.updateById(blogArticle);
-            redisService.delete(ARTICLE_DETAIL_CACHE_KEY + articleDTO.getId());
         }
 
         fileService.markBound(newFileIds);
         releaseRemovedFiles(oldFileIds, newFileIds);
 
-        //两种列表更新版本号
-        redisService.ValueIncrease(DEFAULT_ARTICLE_LIST_VERSION_KEY + "version");
-        redisService.ValueIncrease(PV_DESC_ARTICLE_LIST_VERSION_KEY + "version");
+        int articleId = articleDTO.getId();
+        afterCommitBestEffort(() -> {
+            redisService.delete(ARTICLE_DETAIL_CACHE_KEY + articleId);
+            articleIndexRedisService.evictArticleListDto(articleId);
+            // 当前产品规则中编辑会更新时间，因此新增、编辑都会改变最新列表顺序。
+            articleIndexRedisService.increaseLatestVersion();
+            if (isNewArticle) {
+                articleIndexRedisService.addRankMember(articleId, 0L);
+            }
+        }, "同步文章列表缓存与排行榜失败");
     }
 
     /**
@@ -120,7 +130,13 @@ public class BlogArticleService {
 
         String key = ARTICLE_DETAIL_CACHE_KEY + id;
 
-        ArticleDTO cache = redisService.getObject(key,ArticleDTO.class);
+        ArticleDTO cache = null;
+        try {
+            cache = redisService.getObject(key, ArticleDTO.class);
+        } catch (RuntimeException exception) {
+            // 详情缓存不可用时仍从 MySQL 返回文章，浏览量记录也会自行降级。
+            log.warn("Read article detail cache failed, fallback to MySQL, articleId={}", id, exception);
+        }
         if(cache==null){
             BlogArticle article =
                     blogArticleDAO.selectById(id);
@@ -130,12 +146,16 @@ public class BlogArticleService {
             }
 
             ArticleDTO dto = BlogArticle.toDTO(article);
-            articleViewService.recordView((long) id);
-            redisService.setObject(key,dto,30, TimeUnit.DAYS);//文章详细缓存TTL
+            try {
+                redisService.setObject(key, dto, 30, TimeUnit.DAYS);
+            } catch (RuntimeException exception) {
+                log.warn("Cache article detail failed, articleId={}", id, exception);
+            }
+            applyRealtimeViewCount(dto, articleViewService.recordView((long) id, dto.getViewCount()));
             return dto;
         }
 
-        articleViewService.recordView((long) id);
+        applyRealtimeViewCount(cache, articleViewService.recordView((long) id, cache.getViewCount()));
         return cache;
     }
 
@@ -158,10 +178,12 @@ public class BlogArticleService {
         blogArticleDAO.deleteById(id);
         fileService.markTemp(articleFileIds);
         deleteTempFilesAfterCommit(articleFileIds);
-        redisService.delete(ARTICLE_DETAIL_CACHE_KEY + id);
-        //所有页面缓存失效
-        redisService.ValueIncrease(DEFAULT_ARTICLE_LIST_VERSION_KEY + "version");
-        redisService.ValueIncrease(PV_DESC_ARTICLE_LIST_VERSION_KEY + "version");
+        afterCommitBestEffort(() -> {
+            redisService.delete(ARTICLE_DETAIL_CACHE_KEY + id);
+            articleIndexRedisService.evictArticleListDto(id);
+            articleIndexRedisService.increaseLatestVersion();
+            articleIndexRedisService.removeRankMember(id);
+        }, "删除文章后的缓存与排行榜清理失败");
     }
 
     private void setCoverObjectInfo(ArticleDTO articleDTO) {
@@ -318,101 +340,223 @@ public class BlogArticleService {
         return null;
     }
 
-    /**
-     * 获取浏览量排序版本号 此处需保证操作setIfAbsent原子性
-     */
-    private Long getArticlePageHotVersion(){
-        String key = PV_DESC_ARTICLE_LIST_VERSION_KEY + "version";
-
-        redisService.setIfAbsent(key, 1L);
-
-        return redisService.getObject(key, Long.class);
-    }
-
-    /**
-     * 获取默认排序版本号 此处需保证操作setIfAbsent原子性
-     */
-    private Long getArticlePageDefaultVersion(){
-        String key = DEFAULT_ARTICLE_LIST_VERSION_KEY + "version";
-
-        redisService.setIfAbsent(key, 1L);
-
-        return redisService.getObject(key, Long.class);
-    }
-
     public PageResult getArticleList(int page, int size) {
         return getArticleList(page, size, null);
     }
 
     public PageResult getArticleList(int page, int size, String sort) {
         validateArticlePageParams(page, size);
-
-        Long version;
-        String cacheKey;
         String normalizedSort = normalizeArticleListSort(sort);
+        return "viewCountDesc".equals(normalizedSort)
+                ? getViewRankArticleList(page, size, true)
+                : getLatestArticleList(page, size);
+    }
 
-        if("viewCountDesc".equals(normalizedSort)) {
-            version = getArticlePageHotVersion();
-            cacheKey = PV_DESC_ARTICLE_LIST_VERSION_KEY;
-        } else {//default
-            version = getArticlePageDefaultVersion();
-            cacheKey = DEFAULT_ARTICLE_LIST_VERSION_KEY;
+    /**
+     * 最新列表只缓存分页 ID；排序、总数与分页仍由 MySQL 完成。
+     */
+    private PageResult getLatestArticleList(int page, int size) {
+        ArticlePageIndex pageIndex = null;
+        String cacheKey = null;
+
+        try {
+            long version = articleIndexRedisService.getLatestVersion();
+            cacheKey = articleIndexRedisService.latestPageKey(version, page, size);
+            pageIndex = articleIndexRedisService.getLatestPageIndex(cacheKey);
+        } catch (RuntimeException exception) {
+            log.warn("Read latest article index cache failed, fallback to MySQL", exception);
         }
 
-        cacheKey = cacheKey + String.format(
-                "%d:%d:%d:%s",
-                version, page, size, normalizedSort);
-        PageResult pageResult = redisService.getObject(cacheKey, PageResult.class);
-        //访问MySql
-        if(pageResult == null){
-
-            Page<ArticleListDTO> articlePage =
-                    new Page<>(
-                            page,
-                            size
-                    );
-
-            LambdaQueryWrapper<BlogArticle> queryWrapper =
-                    new LambdaQueryWrapper<>();
-
-            if ("viewCountDesc".equals(normalizedSort)) {
-
-                queryWrapper
-                        .orderByDesc(BlogArticle::getViewCount)
-                        .orderByDesc(BlogArticle::getArticleDate)
-                        .orderByDesc(BlogArticle::getId);
-            } else {
-                queryWrapper
-                        .orderByDesc(BlogArticle::getArticleDate);
+        if (pageIndex == null) {
+            pageIndex = queryLatestPageIndex(page, size);
+            if (cacheKey != null) {
+                try {
+                    articleIndexRedisService.cacheLatestPageIndex(cacheKey, pageIndex);
+                } catch (RuntimeException exception) {
+                    log.warn("Cache latest article index failed", exception);
+                }
             }
+        }
 
-            Page<ArticleListDTO> result = blogArticleDAO.selectArticleListPage(
-                    articlePage,
-                    queryWrapper
-            );
+        validateArticleListPageBounds(pageIndex.getTotalElements(), page, size);
+        HydratedArticleList hydrated = hydrateArticleListDtos(pageIndex.getIds(), null);
 
-            result.getRecords().forEach(
-                    articleListDTO -> {
-                        String coverURL = articleListDTO.getCoverURL();
-                        if(coverURL == null || coverURL.isBlank()){
-                            articleListDTO.setCoverURL(null);
-                        }
+        // 版本失效与删除操作并发时，页面索引可能短暂引用无效 ID，删掉后回库重建一次。
+        if (!hydrated.missingIds().isEmpty() && cacheKey != null) {
+            try {
+                articleIndexRedisService.evictLatestPageIndex(cacheKey);
+            } catch (RuntimeException exception) {
+                log.warn("Evict stale latest article index failed", exception);
+            }
+            pageIndex = queryLatestPageIndex(page, size);
+            hydrated = hydrateArticleListDtos(pageIndex.getIds(), null);
+        }
+
+        return new PageResult(
+                hydrated.dtos(),
+                pageIndex.getTotalElements(),
+                pageIndex.getNumber()
+        );
+    }
+
+    /**
+     * 浏览量榜由 ZSet 负责排序；Redis 不可用或索引未建立时使用 MySQL 快照降级。
+     */
+    private PageResult getViewRankArticleList(int page,
+                                               int size,
+                                               boolean allowReadRepair) {
+        try {
+            if (articleIndexRedisService.hasRankIndex()) {
+                ArticleIndexRedisService.RankPage rankPage =
+                        articleIndexRedisService.getRankPage(page, size);
+                validateArticleListPageBounds(rankPage.totalElements(), page, size);
+                HydratedArticleList hydrated = hydrateArticleListDtos(
+                        rankPage.ids(),
+                        rankPage.scores()
+                );
+
+                if (!hydrated.missingIds().isEmpty()) {
+                    articleIndexRedisService.removeRankMembers(hydrated.missingIds());
+                    // 删除无效 member 后仅重查一次，避免异常数据导致递归循环。
+                    if (allowReadRepair) {
+                        return getViewRankArticleList(page, size, false);
                     }
-            );
+                }
 
-            pageResult = PageResult.from(result);
-            validateArticleListPageBounds(pageResult, page, size);
-            //加入新缓存 按列表类型设置缓存TTL
-            if("viewCountDesc".equals(normalizedSort)) {
-                redisService.setObject(cacheKey,pageResult,1,TimeUnit.HOURS);
-            } else {
-                redisService.setObject(cacheKey,pageResult,7,TimeUnit.DAYS);
+                return new PageResult(
+                        hydrated.dtos(),
+                        rankPage.totalElements(),
+                        page
+                );
+            }
+        } catch (RuntimeException exception) {
+            log.warn("Read article view rank failed, fallback to MySQL", exception);
+        }
+
+        return getMysqlViewCountArticleList(page, size);
+    }
+
+    private ArticlePageIndex queryLatestPageIndex(int page, int size) {
+        LambdaQueryWrapper<BlogArticle> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper
+                .orderByDesc(BlogArticle::getArticleDate)
+                .orderByDesc(BlogArticle::getId);
+        Page<Integer> result = blogArticleDAO.selectArticleIdPage(
+                new Page<>(page, size),
+                queryWrapper
+        );
+        return new ArticlePageIndex(result.getRecords(), result.getTotal(), page, size);
+    }
+
+    private PageResult getMysqlViewCountArticleList(int page, int size) {
+        LambdaQueryWrapper<BlogArticle> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper
+                .orderByDesc(BlogArticle::getViewCount)
+                .orderByDesc(BlogArticle::getId);
+        Page<Integer> result = blogArticleDAO.selectArticleIdPage(
+                new Page<>(page, size),
+                queryWrapper
+        );
+        validateArticleListPageBounds(result.getTotal(), page, size);
+        HydratedArticleList hydrated = hydrateArticleListDtos(result.getRecords(), null);
+        return new PageResult(hydrated.dtos(), result.getTotal(), page);
+    }
+
+    /**
+     * DTO 缓存采用旁路模式：先批量读 Redis，仅对未命中 ID 批量回表并逐项回填。
+     */
+    private HydratedArticleList hydrateArticleListDtos(List<Integer> articleIds,
+                                                        Map<Integer, Long> rankScores) {
+        if (articleIds == null || articleIds.isEmpty()) {
+            return new HydratedArticleList(new ArrayList<>(), Collections.emptySet());
+        }
+
+        Map<Integer, ArticleListDTO> dtoById = new HashMap<>();
+        boolean cacheAvailable = true;
+        try {
+            dtoById.putAll(articleIndexRedisService.getArticleListDtos(articleIds));
+        } catch (RuntimeException exception) {
+            cacheAvailable = false;
+            log.warn("Read article DTO cache failed, fallback to MySQL", exception);
+        }
+
+        List<Integer> missingIds = articleIds.stream()
+                .filter(articleId -> !dtoById.containsKey(articleId))
+                .distinct()
+                .toList();
+        if (!missingIds.isEmpty()) {
+            List<ArticleListDTO> databaseDtos = blogArticleDAO.selectArticleListByIds(missingIds);
+            normalizeArticleListDtos(databaseDtos);
+            for (ArticleListDTO dto : databaseDtos) {
+                if (dto.getId() != null) {
+                    dtoById.put(dto.getId(), dto);
+                }
+            }
+            if (cacheAvailable) {
+                try {
+                    articleIndexRedisService.cacheArticleListDtos(databaseDtos);
+                } catch (RuntimeException exception) {
+                    log.warn("Cache article DTOs failed", exception);
+                }
+            }
+        }
+
+        Map<Integer, Long> realtimeScores = rankScores;
+        if (realtimeScores == null) {
+            try {
+                List<Long> scores = articleIndexRedisService.getViewScores(articleIds);
+                realtimeScores = new HashMap<>();
+                for (int index = 0; index < articleIds.size(); index++) {
+                    realtimeScores.put(articleIds.get(index), scores.get(index));
+                }
+            } catch (RuntimeException exception) {
+                // ZSet 故障时继续返回 DTO 内的 MySQL 浏览量快照。
+                realtimeScores = Collections.emptyMap();
+                log.warn("Read realtime article view counts failed", exception);
+            }
+        }
+
+        List<ArticleListDTO> result = new ArrayList<>(articleIds.size());
+        Set<Integer> invalidIds = new LinkedHashSet<>();
+        for (Integer articleId : articleIds) {
+            ArticleListDTO dto = dtoById.get(articleId);
+            if (dto == null) {
+                invalidIds.add(articleId);
+                continue;
             }
 
-            return pageResult;
+            ArticleListDTO responseDto = copyArticleListDto(dto);
+            Long realtimeScore = realtimeScores.get(articleId);
+            if (realtimeScore != null) {
+                responseDto.setViewCount(realtimeScore);
+            }
+            result.add(responseDto);
         }
-        validateArticleListPageBounds(pageResult, page, size);
-        return pageResult;
+        return new HydratedArticleList(result, invalidIds);
+    }
+
+    private void normalizeArticleListDtos(Collection<ArticleListDTO> articleListDtos) {
+        if (articleListDtos == null) {
+            return;
+        }
+        articleListDtos.forEach(articleListDTO -> {
+            String coverURL = articleListDTO.getCoverURL();
+            if (coverURL == null || coverURL.isBlank()) {
+                articleListDTO.setCoverURL(null);
+            }
+        });
+    }
+
+    private ArticleListDTO copyArticleListDto(ArticleListDTO source) {
+        ArticleListDTO target = new ArticleListDTO();
+        target.setId(source.getId());
+        target.setArticleTitle(source.getArticleTitle());
+        target.setArticleAbstract(source.getArticleAbstract());
+        target.setArticleDate(source.getArticleDate());
+        target.setViewCount(source.getViewCount());
+        target.setArticleCover(source.getArticleCover());
+        target.setCoverURL(source.getCoverURL());
+        return target;
     }
 
     private void validateArticlePageParams(int page,
@@ -430,15 +574,15 @@ public class BlogArticleService {
         }
     }
 
-    private void validateArticleListPageBounds(PageResult pageResult,
+    private void validateArticleListPageBounds(long totalElements,
                                                int page,
                                                int size) {
-        if (pageResult == null || pageResult.getTotalElements() <= 0) {
+        if (totalElements <= 0) {
             return;
         }
 
         long maxPage =
-                (pageResult.getTotalElements() + size - 1) / size;
+                (totalElements + size - 1) / size;
 
         if (page > maxPage) {
             // 有文章时访问超过最大页码才是不存在；第一页空列表仍然允许正常展示。
@@ -453,14 +597,40 @@ public class BlogArticleService {
         return "default";
     }
 
-    public void invalidateViewCountCache(Set<Integer> articleIds) {
-        if (articleIds == null || articleIds.isEmpty()) {
+    private void applyRealtimeViewCount(ArticleDTO articleDTO, Long realtimeViewCount) {
+        if (articleDTO != null && realtimeViewCount != null) {
+            articleDTO.setViewCount(realtimeViewCount);
+        }
+    }
+
+    /**
+     * Redis 是可重建的派生数据，缓存异常不能使已提交的文章事务失败。
+     */
+    private void afterCommitBestEffort(Runnable action, String operation) {
+        Runnable safeAction = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException exception) {
+                log.warn(operation, exception);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            safeAction.run();
+                        }
+                    }
+            );
             return;
         }
-        //删除浏览量更新文章的详细缓存
-        articleIds.forEach(id -> redisService.delete("blog:article:detail:" + id));
-        //废除浏览量列表缓存
-        redisService.ValueIncrease(PV_DESC_ARTICLE_LIST_VERSION_KEY + "version");
+        safeAction.run();
+    }
+
+    private record HydratedArticleList(List<ArticleListDTO> dtos,
+                                       Set<Integer> missingIds) {
     }
 
 }

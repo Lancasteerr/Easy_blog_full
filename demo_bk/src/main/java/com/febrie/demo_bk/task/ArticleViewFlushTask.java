@@ -2,37 +2,34 @@ package com.febrie.demo_bk.task;
 
 import com.febrie.demo_bk.dao.ArticleViewStatDAO;
 import com.febrie.demo_bk.dao.BlogArticleDAO;
-import com.febrie.demo_bk.service.BlogArticleService;
 import com.febrie.demo_bk.service.RedisService;
 import com.febrie.demo_bk.service.pv.ArticleViewService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 将Redis中的浏览量刷到Mysql
  * <p>
- * 并删除浏览量更新的文章的详细缓存
- * <p>
- * 并自增版本号 废除所有文章列表
+ * 每日 Hash 记录的是当天累计值，任务只把尚未落库的 delta 写入 MySQL。
+ * 排行榜由浏览请求实时维护，刷库任务不得回写 ZSet 分数。
  */
 @Slf4j
 @Component
 @AllArgsConstructor
+@ConditionalOnProperty(name = "blog.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class ArticleViewFlushTask {
 
     private final RedisService redisService;
     private final ArticleViewStatDAO articleViewStatDAO;
     private final BlogArticleDAO blogArticleDAO;
-    private final BlogArticleService blogArticleService;
 
     private static final ZoneId BUSINESS_ZONE =
             ZoneId.of("Asia/Shanghai");
@@ -41,19 +38,11 @@ public class ArticleViewFlushTask {
     @Scheduled(fixedDelay = 30 * 60 * 1000)
     @Transactional(rollbackFor = Exception.class)
     public void flushViewStats() {
-        //刷新浏览量的文章id
-        Set<Integer> changedArticleIds = new HashSet<>();
-
-        flushDate(LocalDate.now(BUSINESS_ZONE).minusDays(1), changedArticleIds);
-        flushDate(LocalDate.now(BUSINESS_ZONE), changedArticleIds);
-
-        if (!changedArticleIds.isEmpty()) {
-            changedArticleIds.forEach(blogArticleDAO::refreshTotalViewCount);
-            blogArticleService.invalidateViewCountCache(changedArticleIds);
-        }
+        flushDate(LocalDate.now(BUSINESS_ZONE).minusDays(1));
+        flushDate(LocalDate.now(BUSINESS_ZONE));
     }
 
-    private void flushDate(LocalDate statDate, Set<Integer> changedArticleIds) {
+    private void flushDate(LocalDate statDate) {
         String redisKey = ArticleViewService.buildViewKey(statDate);
         Map<Object, Object> viewCounts = redisService.getHashEntries(redisKey);
         if (viewCounts == null || viewCounts.isEmpty()) {
@@ -70,13 +59,32 @@ public class ArticleViewFlushTask {
                 return;
             }
 
-            articleViewStatDAO.updateViewCount(
-                    articleId,
-                    statDate.toString(),
-                    pvCount
-            );
-            changedArticleIds.add(articleId);
+            flushArticleViewCount(articleId, statDate, pvCount);
         });
+    }
+
+    /**
+     * Redis 与 MySQL 中的日统计都使用累计值，通过行锁读取旧值计算 delta，重复执行不会重复累计。
+     */
+    private void flushArticleViewCount(int articleId,
+                                       LocalDate statDate,
+                                       long redisDailyPv) {
+        Long persistedPv = articleViewStatDAO.selectPvForUpdate(articleId, statDate.toString());
+        long oldPv = persistedPv == null ? 0L : persistedPv;
+        long delta = redisDailyPv - oldPv;
+        if (delta <= 0) {
+            // Redis 计数异常回退时不减少 MySQL 已持久化统计与累计浏览量。
+            return;
+        }
+
+        int updatedRows = blogArticleDAO.incrementViewCount(articleId, delta);
+        if (updatedRows == 0) {
+            // 删除文章后的残留 Hash 字段无需继续落库，外键也会清理历史日统计。
+            log.info("Skip deleted article view stat, articleId={}, statDate={}", articleId, statDate);
+            return;
+        }
+
+        articleViewStatDAO.updateViewCount(articleId, statDate.toString(), redisDailyPv);
     }
 
     private Integer parseInteger(Object value) {
