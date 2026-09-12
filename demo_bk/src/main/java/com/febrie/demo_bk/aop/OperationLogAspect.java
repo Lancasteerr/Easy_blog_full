@@ -3,9 +3,11 @@ package com.febrie.demo_bk.aop;
 import com.febrie.demo_bk.dao.OperationLogDAO;
 import com.febrie.demo_bk.annotation.OperationLoger;
 import com.febrie.demo_bk.pojo.OperationLog;
+import com.febrie.demo_bk.service.OperationLogService;
 import com.febrie.demo_bk.util.LogParamUtil;
 import com.febrie.demo_bk.util.RequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.AllArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -19,17 +21,11 @@ import java.time.LocalDateTime;
 
 @Aspect
 @Component
+@AllArgsConstructor
 public class OperationLogAspect {
 
-    private final OperationLogDAO operationLogDAO;
+    private final OperationLogService operationLogService;
     private final LogParamUtil logParamUtil;
-
-    @Autowired
-    public OperationLogAspect(OperationLogDAO operationLogDAO,
-                              LogParamUtil logParamUtil){
-        this.operationLogDAO = operationLogDAO;
-        this.logParamUtil = logParamUtil;
-    }
 
     //定义切点(哪个自定义注解需要注入代码)
     @Pointcut("@annotation(com.febrie.demo_bk.annotation.OperationLoger)")
@@ -64,7 +60,8 @@ public class OperationLogAspect {
 
             handleLog(joinPoint, log);
 
-            operationLogDAO.insert(log);
+            operationLogService.save(log);
+
         }
 
         return result;
