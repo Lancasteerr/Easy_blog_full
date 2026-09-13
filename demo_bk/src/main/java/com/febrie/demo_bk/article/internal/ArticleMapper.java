@@ -1,11 +1,10 @@
-package com.febrie.demo_bk.dao;
+package com.febrie.demo_bk.article.internal;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Constants;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.febrie.demo_bk.dto.ArticleListDTO;
-import com.febrie.demo_bk.pojo.BlogArticle;
+import com.febrie.demo_bk.article.ArticleListDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -13,9 +12,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Mapper
-public interface BlogArticleDAO extends BaseMapper<BlogArticle> {
-    BlogArticle selectById(int id);
-
+public interface ArticleMapper extends BaseMapper<BlogArticle> {
     /**
      * 只查询分页后的文章 ID，用于最新列表页面索引缓存。
      */

@@ -1,10 +1,10 @@
-package com.febrie.demo_bk.pojo;
+package com.febrie.demo_bk.article.internal;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.febrie.demo_bk.dto.ArticleDTO;
+import com.febrie.demo_bk.article.ArticleDTO;
 import lombok.Data;
 
 import java.time.LocalDateTime;

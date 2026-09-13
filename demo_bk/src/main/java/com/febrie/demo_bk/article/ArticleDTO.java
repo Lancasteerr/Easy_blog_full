@@ -1,16 +1,20 @@
-package com.febrie.demo_bk.dto;
+package com.febrie.demo_bk.article;
 
 import lombok.Data;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
-@Getter
 @Data
-public class ArticleListDTO {
+@Getter
+public class ArticleDTO {
     private Integer id;
 
     private String articleTitle;
+
+    private String articleContentHtml;
+
+    private String articleContentJson;
 
     private String articleAbstract;
 
@@ -18,10 +22,7 @@ public class ArticleListDTO {
 
     private Long viewCount;
 
-    /**
-     * fileObject id
-     */
     private Long articleCover;
 
-    private String coverURL;
+    private String coverObjectUrl;
 }
