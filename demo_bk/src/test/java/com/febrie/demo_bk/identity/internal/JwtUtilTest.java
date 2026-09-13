@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.util;
+package com.febrie.demo_bk.identity.internal;
 
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
@@ -7,11 +7,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class JwtUtilTest {
 
-    private final JwtUtil jwtUtil = new JwtUtil("test-jwt-secret-change-me-at-least-32-bytes");
+    private final JwtUtil jwtUtil =
+            new JwtUtil("test-jwt-secret-change-me-at-least-32-bytes");
 
     @Test
     void generateTokenShouldContainJwtId() {
-        // 新签发的JWT必须带jti，退出登录时才能只废除当前token。
+        // 新签发的 JWT 必须带 jti，退出登录时才能只废除当前 Token。
         String token = jwtUtil.generateToken("admin");
         Claims claims = jwtUtil.parsePayload(token);
 

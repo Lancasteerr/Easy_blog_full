@@ -1,6 +1,6 @@
-package com.febrie.demo_bk.service;
+package com.febrie.demo_bk.identity.internal;
 
-import com.febrie.demo_bk.util.JwtUtil;
+import com.febrie.demo_bk.shared.infrastructure.RedisStore;
 import io.jsonwebtoken.Claims;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +17,13 @@ public class TokenBlacklistService {
 
     private static final String TOKEN_HASH_KEY_PREFIX = "blog:auth:jwt:blacklist:sha256:";
 
-    private final RedisService redisService;
+    private final RedisStore redisStore;
 
     private final JwtUtil jwtUtil;
 
-    public TokenBlacklistService(RedisService redisService,
+    public TokenBlacklistService(RedisStore redisStore,
                                  JwtUtil jwtUtil) {
-        this.redisService = redisService;
+        this.redisStore = redisStore;
         this.jwtUtil = jwtUtil;
     }
 
@@ -38,7 +38,7 @@ public class TokenBlacklistService {
             return;
         }
 
-        redisService.set(
+        redisStore.set(
                 buildBlacklistKey(token, claims),
                 "1",
                 remainingMillis,
@@ -51,7 +51,7 @@ public class TokenBlacklistService {
      */
     public boolean isRevoked(String token,
                              Claims claims) {
-        return redisService.get(buildBlacklistKey(token, claims)) != null;
+        return redisStore.get(buildBlacklistKey(token, claims)) != null;
     }
 
     private String buildBlacklistKey(String token,

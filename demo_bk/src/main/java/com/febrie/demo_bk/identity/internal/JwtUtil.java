@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.util;
+package com.febrie.demo_bk.identity.internal;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;

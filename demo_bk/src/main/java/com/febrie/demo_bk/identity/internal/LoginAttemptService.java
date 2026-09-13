@@ -1,5 +1,6 @@
-package com.febrie.demo_bk.service;
+package com.febrie.demo_bk.identity.internal;
 
+import com.febrie.demo_bk.shared.infrastructure.RedisStore;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
@@ -7,10 +8,10 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class LoginAttemptService {
 
-    private final RedisService redisService;
+    private final RedisStore redisStore;
 
-     public LoginAttemptService(RedisService redisService){
-         this.redisService = redisService;
+     public LoginAttemptService(RedisStore redisStore){
+         this.redisStore = redisStore;
      }
 
      //最大错误次数
@@ -30,10 +31,10 @@ public class LoginAttemptService {
                 "login:fail:ip:" + ip;
 
         Integer userCount =
-                redisService.getObject(userKey, Integer.class);
+                redisStore.getObject(userKey, Integer.class);
 
         Integer ipCount =
-                redisService.getObject(ipKey, Integer.class);
+                redisStore.getObject(ipKey, Integer.class);
 
         return (userCount == null || userCount <= MAX_FAIL)
                 &&
@@ -54,12 +55,12 @@ public class LoginAttemptService {
         String ipKey =
                 "login:fail:ip:" + ip;
 
-        Long userCount = redisService.ValueIncrease(userKey);
+        Long userCount = redisStore.increment(userKey);
 
-        Long ipCount = redisService.ValueIncrease(ipKey);
+        Long ipCount = redisStore.increment(ipKey);
 
         if(userCount == 1) {
-            redisService.redisSetExpire(
+            redisStore.expire(
                     userKey,
                     10,
                     TimeUnit.MINUTES
@@ -67,7 +68,7 @@ public class LoginAttemptService {
         }
 
         if(ipCount == 1){
-            redisService.redisSetExpire(
+            redisStore.expire(
                     ipKey,
                     10,
                     TimeUnit.MINUTES
@@ -83,9 +84,9 @@ public class LoginAttemptService {
             String ip
     ){
 
-        redisService.delete("login:fail:user:" + username);
+        redisStore.delete("login:fail:user:" + username);
 
-        redisService.delete("login:fail:ip:" + ip);
+        redisStore.delete("login:fail:ip:" + ip);
 
     }
 

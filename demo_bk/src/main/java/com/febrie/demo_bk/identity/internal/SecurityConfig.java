@@ -1,8 +1,7 @@
-package com.febrie.demo_bk.config;
+package com.febrie.demo_bk.identity.internal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.febrie.demo_bk.filter.JwtAuthenticationFilter;
-import com.febrie.demo_bk.result.ApiError;
+import com.febrie.demo_bk.shared.web.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;

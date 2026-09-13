@@ -1,6 +1,6 @@
-package com.febrie.demo_bk.service;
+package com.febrie.demo_bk.identity.internal;
 
-import com.febrie.demo_bk.util.JwtUtil;
+import com.febrie.demo_bk.shared.infrastructure.RedisStore;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,17 +24,16 @@ class TokenBlacklistServiceTest {
     private static final long TWELVE_HOURS_MILLIS = 12 * 60 * 60 * 1000L;
 
     @Mock
-    private RedisService redisService;
+    private RedisStore redisStore;
 
     private JwtUtil jwtUtil;
-
     private TokenBlacklistService tokenBlacklistService;
 
     @BeforeEach
     void setUp() {
-        // 使用固定密钥构造JWT工具，避免单元测试依赖Spring上下文。
+        // 使用固定密钥构造 JWT 工具，避免单元测试依赖 Spring 上下文。
         jwtUtil = new JwtUtil("test-jwt-secret-change-me-at-least-32-bytes");
-        tokenBlacklistService = new TokenBlacklistService(redisService, jwtUtil);
+        tokenBlacklistService = new TokenBlacklistService(redisStore, jwtUtil);
     }
 
     @Test
@@ -46,8 +45,7 @@ class TokenBlacklistServiceTest {
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Long> ttlCaptor = ArgumentCaptor.forClass(Long.class);
-
-        verify(redisService).set(
+        verify(redisStore).set(
                 keyCaptor.capture(),
                 eq("1"),
                 ttlCaptor.capture(),
@@ -66,25 +64,21 @@ class TokenBlacklistServiceTest {
     void isRevokedShouldReturnTrueWhenRedisHasBlacklistEntry() {
         String token = jwtUtil.generateToken("admin");
         Claims claims = jwtUtil.parsePayload(token);
-        when(redisService.get(anyString())).thenReturn("1");
+        when(redisStore.get(anyString())).thenReturn("1");
 
-        boolean revoked = tokenBlacklistService.isRevoked(token, claims);
-
-        assertThat(revoked).isTrue();
+        assertThat(tokenBlacklistService.isRevoked(token, claims)).isTrue();
     }
 
     @Test
     void isRevokedShouldUseSha256KeyForLegacyTokenWithoutJti() {
         Claims claims = mock(Claims.class);
         when(claims.getId()).thenReturn(null);
-        when(redisService.get(anyString())).thenReturn(null);
+        when(redisStore.get(anyString())).thenReturn(null);
 
-        boolean revoked = tokenBlacklistService.isRevoked("legacy-token", claims);
+        assertThat(tokenBlacklistService.isRevoked("legacy-token", claims)).isFalse();
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(redisService).get(keyCaptor.capture());
-
-        assertThat(revoked).isFalse();
+        verify(redisStore).get(keyCaptor.capture());
         assertThat(keyCaptor.getValue()).startsWith("blog:auth:jwt:blacklist:sha256:");
         assertThat(keyCaptor.getValue()).doesNotContain("legacy-token");
         assertThat(keyCaptor.getValue().replace("blog:auth:jwt:blacklist:sha256:", ""))

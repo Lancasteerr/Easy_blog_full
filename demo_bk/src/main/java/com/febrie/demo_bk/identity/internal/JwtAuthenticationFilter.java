@@ -1,9 +1,7 @@
-package com.febrie.demo_bk.filter;
+package com.febrie.demo_bk.identity.internal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.febrie.demo_bk.result.ApiError;
-import com.febrie.demo_bk.service.TokenBlacklistService;
-import com.febrie.demo_bk.util.JwtUtil;
+import com.febrie.demo_bk.shared.web.ApiError;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
