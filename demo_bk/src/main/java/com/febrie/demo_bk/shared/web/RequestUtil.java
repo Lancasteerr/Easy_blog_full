@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.util;
+package com.febrie.demo_bk.shared.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;

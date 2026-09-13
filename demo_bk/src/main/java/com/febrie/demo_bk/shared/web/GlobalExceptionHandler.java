@@ -1,6 +1,6 @@
-package com.febrie.demo_bk.exception;
+package com.febrie.demo_bk.shared.web;
 
-import com.febrie.demo_bk.result.ApiError;
+import com.febrie.demo_bk.shared.web.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

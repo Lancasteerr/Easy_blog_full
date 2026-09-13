@@ -1,11 +1,7 @@
-package com.febrie.demo_bk.aop;
+package com.febrie.demo_bk.audit.internal;
 
-import com.febrie.demo_bk.dao.OperationLogDAO;
-import com.febrie.demo_bk.annotation.OperationLoger;
-import com.febrie.demo_bk.pojo.OperationLog;
-import com.febrie.demo_bk.service.OperationLogService;
-import com.febrie.demo_bk.util.LogParamUtil;
-import com.febrie.demo_bk.util.RequestUtil;
+import com.febrie.demo_bk.audit.OperationLoger;
+import com.febrie.demo_bk.shared.web.RequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -13,7 +9,6 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
@@ -27,11 +22,11 @@ public class OperationLogAspect {
     private final OperationLogService operationLogService;
     private final LogParamUtil logParamUtil;
 
-    //定义切点(哪个自定义注解需要注入代码)
-    @Pointcut("@annotation(com.febrie.demo_bk.annotation.OperationLoger)")
+    // 标记需要记录操作日志的方法。
+    @Pointcut("@annotation(com.febrie.demo_bk.audit.OperationLoger)")
     public void pointcut(){}
 
-    //定义注解执行代码
+    // 在不改变业务返回值和异常的前提下收集操作日志。
     @Around("pointcut()")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
 

@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.result;
+package com.febrie.demo_bk.shared.web;
 
 import lombok.Getter;
 import lombok.Setter;

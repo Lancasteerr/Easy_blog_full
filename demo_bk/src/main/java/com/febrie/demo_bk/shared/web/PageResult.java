@@ -1,7 +1,6 @@
-package com.febrie.demo_bk.result;
+package com.febrie.demo_bk.shared.web;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.febrie.demo_bk.dto.ArticleListDTO;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,8 +8,8 @@ import java.util.List;
 
 @Getter
 @Setter
-public class PageResult {
-    private List<ArticleListDTO> content;
+public class PageResult<T> {
+    private List<T> content;
 
     private long totalElements;
 
@@ -21,7 +20,7 @@ public class PageResult {
      */
     public PageResult(){}
 
-    public PageResult(List<ArticleListDTO> content,
+    public PageResult(List<T> content,
                       long totalElements,
                       int number) {
         this.content = content;
@@ -29,9 +28,12 @@ public class PageResult {
         this.number = number;
     }
 
-    public static PageResult from(Page<ArticleListDTO> BlogArticleS){
-        return new PageResult(BlogArticleS.getRecords(),
-                BlogArticleS.getTotal(),
-                (int)BlogArticleS.getCurrent());
+    /**
+     * 将 MyBatis Plus 分页结果转换成稳定的接口分页结构。
+     */
+    public static <T> PageResult<T> from(Page<T> page){
+        return new PageResult<>(page.getRecords(),
+                page.getTotal(),
+                (int) page.getCurrent());
     }
 }

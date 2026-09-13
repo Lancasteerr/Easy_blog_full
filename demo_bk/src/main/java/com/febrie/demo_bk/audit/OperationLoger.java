@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.annotation;
+package com.febrie.demo_bk.audit;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

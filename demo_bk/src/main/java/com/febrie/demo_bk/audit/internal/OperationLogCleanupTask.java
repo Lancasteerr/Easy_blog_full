@@ -1,8 +1,6 @@
-package com.febrie.demo_bk.task;
+package com.febrie.demo_bk.audit.internal;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.febrie.demo_bk.dao.OperationLogDAO;
-import com.febrie.demo_bk.pojo.OperationLog;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,7 +25,7 @@ public class OperationLogCleanupTask {
     //单次任务最多执行100批，避免历史日志过多时任务长时间占用线程
     private static final int MAX_BATCH_COUNT = 100;
 
-    private final OperationLogDAO operationLogDAO;
+    private final OperationLogMapper operationLogMapper;
 
     //每天凌晨3点清理一次过期日志
     @Scheduled(cron = "0 0 3 * * ?")
@@ -40,7 +38,7 @@ public class OperationLogCleanupTask {
 
         for (int i = 0; i < MAX_BATCH_COUNT; i++) {
             int deleted =
-                    operationLogDAO.delete(
+                    operationLogMapper.delete(
                             new LambdaQueryWrapper<OperationLog>()
                                     .lt(OperationLog::getCreateTime, expireBefore)
                                     .orderByAsc(OperationLog::getCreateTime)

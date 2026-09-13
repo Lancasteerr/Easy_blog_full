@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.config;
+package com.febrie.demo_bk.shared.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;

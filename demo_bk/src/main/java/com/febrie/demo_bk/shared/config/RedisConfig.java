@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.config;
+package com.febrie.demo_bk.shared.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

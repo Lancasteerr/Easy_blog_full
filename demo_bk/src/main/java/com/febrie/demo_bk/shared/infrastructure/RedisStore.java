@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.service;
+package com.febrie.demo_bk.shared.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @AllArgsConstructor
-public class RedisService {
+public class RedisStore {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private  final StringRedisTemplate stringRedisTemplate;
@@ -81,8 +81,8 @@ public class RedisService {
         return redisTemplate.delete(keys);
     }
 
-    //指定value自增 原子自增避免并发问题
-    public Long ValueIncrease(String key){
+    // 指定 value 原子自增，避免并发请求丢失计数。
+    public Long increment(String key){
         return redisTemplate.opsForValue().increment(key);
     }
 
@@ -90,8 +90,8 @@ public class RedisService {
         return stringRedisTemplate.opsForHash().entries(key);
     }
 
-    //指定key设定过期时间
-    public void redisSetExpire(String key, long time, TimeUnit unit){
+    // 为指定 Key 设置过期时间。
+    public void expire(String key, long time, TimeUnit unit){
         redisTemplate.expire(key, time, unit);
     }
 
