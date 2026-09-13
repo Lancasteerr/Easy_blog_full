@@ -1,8 +1,7 @@
-package com.febrie.demo_bk.service.pv;
+package com.febrie.demo_bk.article.internal;
 
-import com.febrie.demo_bk.service.ArticleIndexRedisService;
-import lombok.extern.slf4j.Slf4j;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -12,11 +11,9 @@ import java.time.ZoneId;
 @Service
 @AllArgsConstructor
 public class ArticleViewService
-        implements ArticleViewServiceImpl{
+{
 
-    private final ArticleIndexRedisService articleIndexRedisService;
-
-    private static final String VIEW_KEY_PREFIX = "blog:article:view";
+    private final ArticleViewStore articleViewStore;
 
     /**
      * 明确统计时区，不依赖服务器时区
@@ -25,12 +22,10 @@ public class ArticleViewService
     private static final ZoneId BUSINESS_ZONE =
             ZoneId.of("Asia/Shanghai");
 
-    @Override
     public Long recordView(Long articleId) {
         return recordView(articleId, 0L);
     }
 
-    @Override
     public Long recordView(Long articleId, Long persistedViewCount) {
 
         if (articleId == null || articleId <= 0) {
@@ -38,13 +33,11 @@ public class ArticleViewService
         }
 
         LocalDate today = LocalDate.now(BUSINESS_ZONE);
-        String redisKey = buildViewKey(today);
-
         try {
             // Lua 在 Redis 内原子写入当天 PV 与累计浏览量排行榜。
-            return articleIndexRedisService.incrementView(
+            return articleViewStore.incrementView(
                     articleId.intValue(),
-                    redisKey,
+                    today,
                     persistedViewCount == null ? 0L : persistedViewCount
             );
         } catch (RuntimeException exception) {
@@ -52,10 +45,6 @@ public class ArticleViewService
             log.warn("Record article view failed, articleId={}", articleId, exception);
             return null;
         }
-    }
-
-    public static String buildViewKey(LocalDate date) {
-        return VIEW_KEY_PREFIX + date;
     }
 
 }

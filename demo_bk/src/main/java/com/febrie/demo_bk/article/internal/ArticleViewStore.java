@@ -1,12 +1,12 @@
-package com.febrie.demo_bk.service;
+package com.febrie.demo_bk.article.internal;
 
-import com.febrie.demo_bk.dto.ArticleListDTO;
-import com.febrie.demo_bk.dto.ArticlePageIndex;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,27 +19,15 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 文章列表索引与浏览量排行榜的 Redis 访问入口。
- *
- * <p>最新列表缓存页面 ID，浏览量榜缓存排序 ID；两者都通过文章 DTO 缓存补全展示数据。</p>
+ * 文章每日浏览量与累计排行榜的 Redis 访问入口。
  */
-@Service
-@AllArgsConstructor
-public class ArticleIndexRedisService {
+@Component
+@RequiredArgsConstructor
+public class ArticleViewStore {
 
-    private static final String LATEST_VERSION_KEY =
-            "blog:article:index:latest:version";
-    private static final String LATEST_PAGE_KEY_PREFIX =
-            "blog:article:index:latest:";
-    private static final String ARTICLE_LIST_KEY_PREFIX =
-            "blog:article:list:";
-    private static final String VIEW_RANK_KEY =
-            "blog:article:rank:view:all";
-
-    private static final long LATEST_PAGE_TTL_HOURS = 1L;
-    private static final long ARTICLE_LIST_TTL_HOURS = 24L;
-    private static final long DAILY_VIEW_TTL_SECONDS =
-            TimeUnit.DAYS.toSeconds(2L);
+    private static final String DAILY_VIEW_KEY_PREFIX = "blog:article:view";
+    private static final String VIEW_RANK_KEY = "blog:article:rank:view:all";
+    private static final long DAILY_VIEW_TTL_SECONDS = TimeUnit.DAYS.toSeconds(2L);
 
     /**
      * 同一 Redis 内完成每日 PV 与排行榜累计值更新，避免两个命令部分成功。
@@ -61,7 +49,7 @@ public class ArticleIndexRedisService {
                     """, Long.class);
 
     /**
-     * 只把异常偏低的分数提高到 MySQL 已持久化值，绝不覆盖更高的实时值。
+     * 只把异常偏低的分数提高到 MySQL 已持久化值，不覆盖更高的实时值。
      */
     private static final DefaultRedisScript<Long> PROMOTE_RANK_SCORE_SCRIPT =
             new DefaultRedisScript<>("""
@@ -73,102 +61,23 @@ public class ArticleIndexRedisService {
                     return 0
                     """, Long.class);
 
-    private final RedisService redisService;
     private final StringRedisTemplate stringRedisTemplate;
 
-    /**
-     * Redis 并列分数按 member 字典序排序，十位补零后可得到数值 ID 倒序。
-     */
-    public static String member(int articleId) {
-        if (articleId <= 0) {
-            throw new IllegalArgumentException("文章ID不合法");
-        }
-        return String.format(Locale.ROOT, "%010d", articleId);
-    }
-
-    public static int articleId(String member) {
-        return Integer.parseInt(member);
-    }
-
-    public long getLatestVersion() {
-        redisService.setIfAbsent(LATEST_VERSION_KEY, 1L);
-        Long version = redisService.getObject(LATEST_VERSION_KEY, Long.class);
-        return version == null ? 1L : version;
-    }
-
-    public void increaseLatestVersion() {
-        redisService.ValueIncrease(LATEST_VERSION_KEY);
-    }
-
-    public String latestPageKey(long version, int page, int size) {
-        return LATEST_PAGE_KEY_PREFIX + version + ":" + page + ":" + size;
-    }
-
-    public ArticlePageIndex getLatestPageIndex(String key) {
-        return redisService.getObject(key, ArticlePageIndex.class);
-    }
-
-    public void cacheLatestPageIndex(String key, ArticlePageIndex pageIndex) {
-        redisService.setObject(key, pageIndex, LATEST_PAGE_TTL_HOURS, TimeUnit.HOURS);
-    }
-
-    public void evictLatestPageIndex(String key) {
-        redisService.delete(key);
-    }
-
-    public Map<Integer, ArticleListDTO> getArticleListDtos(List<Integer> articleIds) {
-        if (articleIds == null || articleIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        List<String> keys = articleIds.stream()
-                .map(this::articleListKey)
-                .toList();
-        List<ArticleListDTO> cachedDtos = redisService.getObjects(keys, ArticleListDTO.class);
-        Map<Integer, ArticleListDTO> dtoById = new LinkedHashMap<>();
-
-        for (int index = 0; index < articleIds.size(); index++) {
-            ArticleListDTO dto = cachedDtos.get(index);
-            if (dto != null && dto.getId() != null) {
-                dtoById.put(dto.getId(), dto);
-            }
-        }
-        return dtoById;
-    }
-
-    public void cacheArticleListDtos(Collection<ArticleListDTO> articleListDtos) {
-        if (articleListDtos == null || articleListDtos.isEmpty()) {
-            return;
-        }
-
-        for (ArticleListDTO dto : articleListDtos) {
-            if (dto != null && dto.getId() != null) {
-                redisService.setObject(
-                        articleListKey(dto.getId()),
-                        dto,
-                        ARTICLE_LIST_TTL_HOURS,
-                        TimeUnit.HOURS
-                );
-            }
-        }
-    }
-
-    public void evictArticleListDto(int articleId) {
-        redisService.delete(articleListKey(articleId));
-    }
-
     public Long incrementView(int articleId,
-                              String dailyViewKey,
+                              LocalDate statDate,
                               long persistedViewCount) {
-        long baseScore = Math.max(0L, persistedViewCount);
         return stringRedisTemplate.execute(
                 INCREMENT_VIEW_SCRIPT,
-                List.of(dailyViewKey, VIEW_RANK_KEY),
+                List.of(dailyViewKey(statDate), VIEW_RANK_KEY),
                 String.valueOf(articleId),
                 member(articleId),
-                String.valueOf(baseScore),
+                String.valueOf(Math.max(0L, persistedViewCount)),
                 String.valueOf(DAILY_VIEW_TTL_SECONDS)
         );
+    }
+
+    public Map<Object, Object> getDailyViewCounts(LocalDate statDate) {
+        return stringRedisTemplate.opsForHash().entries(dailyViewKey(statDate));
     }
 
     public void addRankMember(int articleId, long viewCount) {
@@ -187,8 +96,9 @@ public class ArticleIndexRedisService {
         if (articleIds == null || articleIds.isEmpty()) {
             return;
         }
+
         Object[] members = articleIds.stream()
-                .map(ArticleIndexRedisService::member)
+                .map(ArticleViewStore::member)
                 .toArray();
         stringRedisTemplate.opsForZSet().remove(VIEW_RANK_KEY, members);
     }
@@ -197,8 +107,9 @@ public class ArticleIndexRedisService {
         if (articleIds == null || articleIds.isEmpty()) {
             return Collections.emptyList();
         }
+
         Object[] members = articleIds.stream()
-                .map(ArticleIndexRedisService::member)
+                .map(ArticleViewStore::member)
                 .toArray();
         List<Double> scores = stringRedisTemplate.opsForZSet().score(VIEW_RANK_KEY, members);
         if (scores == null) {
@@ -215,7 +126,7 @@ public class ArticleIndexRedisService {
     public RankPage getRankPage(int page, int size) {
         long start = (long) (page - 1) * size;
         long end = start + size - 1;
-        Set<org.springframework.data.redis.core.ZSetOperations.TypedTuple<String>> tuples =
+        Set<ZSetOperations.TypedTuple<String>> tuples =
                 stringRedisTemplate.opsForZSet().reverseRangeWithScores(
                         VIEW_RANK_KEY,
                         start,
@@ -223,18 +134,25 @@ public class ArticleIndexRedisService {
                 );
         Long total = stringRedisTemplate.opsForZSet().zCard(VIEW_RANK_KEY);
         if (tuples == null || tuples.isEmpty()) {
-            return new RankPage(Collections.emptyList(), Collections.emptyMap(), total == null ? 0L : total);
+            return new RankPage(
+                    Collections.emptyList(),
+                    Collections.emptyMap(),
+                    total == null ? 0L : total
+            );
         }
 
         List<Integer> ids = new ArrayList<>(tuples.size());
         Map<Integer, Long> scores = new LinkedHashMap<>();
-        for (org.springframework.data.redis.core.ZSetOperations.TypedTuple<String> tuple : tuples) {
+        for (ZSetOperations.TypedTuple<String> tuple : tuples) {
             if (tuple.getValue() == null) {
                 continue;
             }
-            int id = articleId(tuple.getValue());
-            ids.add(id);
-            scores.put(id, tuple.getScore() == null ? 0L : tuple.getScore().longValue());
+            int articleId = articleId(tuple.getValue());
+            ids.add(articleId);
+            scores.put(
+                    articleId,
+                    tuple.getScore() == null ? 0L : tuple.getScore().longValue()
+            );
         }
         return new RankPage(ids, scores, total == null ? 0L : total);
     }
@@ -265,12 +183,26 @@ public class ArticleIndexRedisService {
         );
     }
 
-    private String articleListKey(int articleId) {
-        return ARTICLE_LIST_KEY_PREFIX + articleId;
+    public static String dailyViewKey(LocalDate date) {
+        return DAILY_VIEW_KEY_PREFIX + date;
     }
 
     /**
-     * ZSet 分页结果，score 即可直接用于响应中的实时浏览量。
+     * Redis 并列分数按 member 字典序排序，十位补零后可得到数值 ID 倒序。
+     */
+    public static String member(int articleId) {
+        if (articleId <= 0) {
+            throw new IllegalArgumentException("文章ID不合法");
+        }
+        return String.format(Locale.ROOT, "%010d", articleId);
+    }
+
+    public static int articleId(String member) {
+        return Integer.parseInt(member);
+    }
+
+    /**
+     * ZSet 分页结果，score 可直接用于响应中的实时浏览量。
      */
     public record RankPage(List<Integer> ids,
                            Map<Integer, Long> scores,

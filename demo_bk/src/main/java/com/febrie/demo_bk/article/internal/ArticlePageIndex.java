@@ -1,5 +1,6 @@
-package com.febrie.demo_bk.dto;
+package com.febrie.demo_bk.article.internal;
 
+import com.febrie.demo_bk.article.ArticleListDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

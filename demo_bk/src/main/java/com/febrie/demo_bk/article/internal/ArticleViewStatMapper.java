@@ -1,7 +1,6 @@
-package com.febrie.demo_bk.dao;
+package com.febrie.demo_bk.article.internal;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.febrie.demo_bk.pojo.ArticleViewStat;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -9,7 +8,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
-public interface ArticleViewStatDAO extends BaseMapper<ArticleViewStat> {
+public interface ArticleViewStatMapper extends BaseMapper<ArticleViewStat> {
 
     /**
      * 将某篇文章某天的浏览量设置为 Redis 中的累计值

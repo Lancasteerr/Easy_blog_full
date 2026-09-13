@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.pojo;
+package com.febrie.demo_bk.article.internal;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
