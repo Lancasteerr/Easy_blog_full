@@ -158,7 +158,7 @@ public class ArticleViewStore {
     }
 
     public boolean hasRankIndex() {
-        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(VIEW_RANK_KEY));
+        return stringRedisTemplate.hasKey(VIEW_RANK_KEY);
     }
 
     public Set<Integer> getAllRankArticleIds() {
