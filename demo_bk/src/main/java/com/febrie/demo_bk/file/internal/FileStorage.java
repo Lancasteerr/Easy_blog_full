@@ -1,11 +1,8 @@
-package com.febrie.demo_bk.service.storage;
-
-import com.febrie.demo_bk.pojo.FileUploadRequest;
-import com.febrie.demo_bk.pojo.FileUploadResult;
+package com.febrie.demo_bk.file.internal;
 
 import java.io.InputStream;
 
-public interface FileStorageService {
+public interface FileStorage {
 
     /**
      * 上传文件

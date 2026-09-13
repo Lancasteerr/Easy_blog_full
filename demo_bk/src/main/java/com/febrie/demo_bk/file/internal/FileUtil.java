@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.util;
+package com.febrie.demo_bk.file.internal;
 
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;

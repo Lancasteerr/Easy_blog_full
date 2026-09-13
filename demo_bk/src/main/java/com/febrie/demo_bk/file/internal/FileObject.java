@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.pojo;
+package com.febrie.demo_bk.file.internal;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;

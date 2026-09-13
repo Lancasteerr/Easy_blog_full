@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.dto;
+package com.febrie.demo_bk.file;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;

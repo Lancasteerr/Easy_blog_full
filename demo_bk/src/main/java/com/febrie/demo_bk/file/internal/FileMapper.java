@@ -1,10 +1,9 @@
-package com.febrie.demo_bk.dao;
+package com.febrie.demo_bk.file.internal;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.febrie.demo_bk.pojo.FileObject;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface FileObjectMapper
+public interface FileMapper
         extends BaseMapper<FileObject> {
 }

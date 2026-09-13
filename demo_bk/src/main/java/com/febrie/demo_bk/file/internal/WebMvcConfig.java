@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.config;
+package com.febrie.demo_bk.file.internal;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;

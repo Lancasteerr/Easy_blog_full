@@ -1,7 +1,4 @@
-package com.febrie.demo_bk.service.storage;
-
-import com.febrie.demo_bk.pojo.FileUploadRequest;
-import com.febrie.demo_bk.pojo.FileUploadResult;
+package com.febrie.demo_bk.file.internal;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,8 +13,8 @@ import java.nio.file.StandardCopyOption;
 
 
 @Service
-public class LocalStorageService
-        implements FileStorageService {
+public class LocalFileStorage
+        implements FileStorage {
 
     @Value("${storage.local.root-path}")
     private String rootPath;

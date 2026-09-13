@@ -1,4 +1,4 @@
-package com.febrie.demo_bk.pojo;
+package com.febrie.demo_bk.file.internal;
 
 import lombok.Data;
 
