@@ -30,18 +30,19 @@ Suitable for learning, personal projects, and further development.
 
 ### Project Structure
 
-```yml
-src/main/java
-├─ controller   // REST APIs
-├─ service      // Business logic
-├─ dao          // Data access
-├─ pojo         // JPA entities
-├─ dto          // Data transfer objects
-├─ filter       // Filter
-├─ util         // Utility
-├─ result       // Return code
-└─ config       // Configuration
+The backend is a modular monolith organized by business capability first, then by layer:
+
+```text
+src/main/java/com/febrie/demo_bk
+├─ article/{web,application,domain,infrastructure}
+├─ file/{web,application,infrastructure}
+├─ identity/{web,application,infrastructure}
+├─ audit/{application,infrastructure}
+└─ shared/{config,error,pagination,infrastructure,web}
 ```
+
+Business modules may only collaborate through application services and DTOs. Persistence, cache, security, and storage implementations remain inside each module's `infrastructure` package.
+Article reads keep `ArticleQueryService` as the stable facade; detail, latest-list, rank, and DTO-hydration flows live in `article.application.query`, while Redis access is split into responsibility-specific stores.
 
 ### Prerequisites
 
@@ -155,19 +156,21 @@ MIT License
 - Maven
 
 ### 项目结构
-```yml
 
-src/main/java
-├─ controller // 接口层（REST API）
-├─ service // 业务逻辑层
-├─ dao // 数据访问层
-├─ pojo // JPA 实体类
-├─ dto // 数据传输对象
-├─ filter //过滤器
-├─ util //工具类
-├─ result //返回值
-└─ config // 配置类
+后端采用“业务模块优先、模块内部四层”的模块化单体结构：
+
+```text
+src/main/java/com/febrie/demo_bk
+├─ article/{web,application,domain,infrastructure}
+├─ file/{web,application,infrastructure}
+├─ identity/{web,application,infrastructure}
+├─ audit/{application,infrastructure}
+└─ shared/{config,error,pagination,infrastructure,web}
 ```
+
+业务模块之间只能通过应用服务和 DTO 协作；Mapper、持久化对象、缓存、安全和存储实现均留在各模块的 `infrastructure` 包中。
+文章读取由 `ArticleQueryService` 保持稳定门面，详情、最新列表、排行榜和 DTO 水合分别放在 `article.application.query`；Redis 访问按详情、列表 DTO、最新索引和浏览量职责拆分。
+
 ### 环境要求
 
 - JDK 17 或更高版本

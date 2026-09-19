@@ -1,99 +1,149 @@
 # Easy Blog 后端架构约定
 
-## 目标结构
+## 总体原则
 
-后端保持单 Maven 工程，按业务能力组织为模块化单体：
+后端保持单 Maven 工程，采用“业务模块优先、模块内部四层”的模块化单体结构：
 
 ```text
 com.febrie.demo_bk
-├─ article                 DTO、Command/Query 应用服务
-│  ├─ web                  文章 HTTP 接口
-│  └─ internal             Mapper、实体、缓存、浏览统计、领域事件与任务
-├─ file                    DTO、文件应用服务
-│  ├─ web                  文件 HTTP 接口
-│  └─ internal             Mapper、实体、存储实现与临时文件任务
-├─ identity                认证应用服务
-│  ├─ web                  登录与退出接口
-│  └─ internal             用户、JWT、登录限制、黑名单和安全配置
-├─ audit                   操作日志注解
-│  └─ internal             异步日志服务、切面、Mapper、实体、脱敏与清理任务
-├─ shared                  无业务归属的共享基础能力
-│  ├─ config               MyBatis、Redis、Scheduling 配置
-│  ├─ infrastructure       低层 RedisStore
-│  └─ web                  Result、异常处理与 HTTP 辅助
-└─ DemoBkApplication.java
+├─ article
+├─ file
+├─ identity
+├─ audit
+└─ shared
 ```
 
-模块根包保存需要被同模块 Web 层或其他模块调用的应用服务和数据契约；`web` 保存 HTTP 适配代码；`internal` 保存 Mapper、持久化对象、定时任务和基础设施实现。
+每个业务模块按实际需要使用以下层级，不为没有业务模型的模块创建空目录：
+
+| 层级 | 职责 | 禁止事项 |
+|---|---|---|
+| `web` | Controller、HTTP 请求和响应适配 | 不得直接访问 Mapper、实体、Redis 或文件存储 |
+| `application` | 用例编排、事务边界、模块公开服务和 DTO | 不得依赖 Controller、Servlet 或 Web 异常处理器 |
+| `domain` | 纯业务规则、值对象和领域事件 | 不得依赖 Spring、MyBatis、Redis 或 Servlet |
+| `infrastructure` | 数据库、缓存、安全、存储、配置和定时任务 | 不得被其他业务模块直接引用 |
+
+本项目采用实用分层：应用层可以直接依赖本模块基础设施，但跨模块只能访问对方应用层公开服务或 DTO。
+
+## 目录结构
+
+```text
+article
+├─ web
+├─ application
+│  ├─ dto
+│  ├─ content
+│  ├─ event
+│  └─ query
+├─ domain
+│  └─ event
+└─ infrastructure
+   ├─ persistence
+   ├─ cache
+   └─ scheduling
+
+file
+├─ web
+├─ application
+│  ├─ dto
+│  └─ storage
+└─ infrastructure
+   ├─ persistence
+   ├─ storage
+   ├─ config
+   └─ scheduling
+
+identity
+├─ web
+│  └─ request
+├─ application
+└─ infrastructure
+   ├─ persistence
+   └─ security
+
+audit
+├─ application
+└─ infrastructure
+   ├─ aop
+   ├─ persistence
+   └─ scheduling
+
+shared
+├─ config
+├─ error
+├─ pagination
+├─ infrastructure
+│  └─ redis
+└─ web
+   ├─ advice
+   ├─ request
+   └─ response
+```
+
+每个包通过 `package-info.java` 就近说明职责。新增类必须先确定业务归属，再确定所属层级。
+
+## 文章查询与缓存职责
+
+`ArticleQueryService` 是 Controller 使用的稳定门面，只负责公共参数校验和查询策略分派。具体读取流程位于 `article.application.query`：
+
+- `ArticleDetailQuery`：详情缓存、负缓存、回源锁、MySQL 降级和浏览量记录；
+- `LatestArticleListQuery`：最新文章版本索引、分页索引修复和完整分页降级；
+- `ArticleViewRankQuery`：浏览量排行榜读取、失效成员修复和 MySQL 快照降级；
+- `ArticleListHydrator`：批量 DTO 水合、单文章锁、负缓存和实时浏览量合并。
+
+文章缓存按数据责任拆分，禁止重新合并为包含所有缓存能力的聚合 Store：
+
+- `ArticleDetailCacheStore` 只管理详情缓存、详情负缓存和详情锁 Key；
+- `ArticleListCacheStore` 只管理列表 DTO 缓存、批量读取和列表锁 Key；
+- `LatestArticleIndexStore` 只管理最新版本号、分页索引和版本推进；
+- `ArticleViewStore` 只管理实时浏览量、排行榜和相关修复状态；
+- `CacheValue` 统一表达正常命中、负缓存命中和真正未命中。
+
+上述拆分不得改变 Redis Key、TTL、Lua 脚本、锁等待时间和故障降级语义。
 
 ## 允许的依赖方向
 
 ```text
-article  ──> file
-article  ──> shared
-article  ──> audit（仅使用操作日志注解）
-file     ──> shared
-identity ──> shared
-identity ──> audit（仅使用操作日志注解）
-audit    ──> shared
+article.application ──> file.application
+article.web ──────────> audit.application（仅操作日志注解）
+identity.web ─────────> audit.application（仅操作日志注解）
+业务模块 ─────────────> shared
+shared ───────────────> 不依赖任何业务模块
 ```
 
-- `shared` 不得依赖任何业务模块。
-- 业务模块不得访问其他模块的 Mapper、持久化对象或 `internal` 包。
-- Controller 只能调用所属模块的应用服务，不能直接访问 Mapper。
-- 跨模块调用必须通过对方模块根包中的公开应用服务或数据契约。
-- `article`、`identity` 对 `audit` 的依赖仅限根包中的 `OperationLoger` 注解，审计模块不得反向依赖业务模块。
+- Controller 只能调用所属模块应用服务以及必要的共享 Web 能力。
+- 业务模块不得引用其他模块的 `domain`、`infrastructure`、Mapper、持久化对象或 Store。
+- `shared` 代码必须无业务语义、已被多个模块实际使用，并且不依赖业务模块。
+- 定时任务放在所属模块的 `infrastructure.scheduling`，不建立全局任务包。
 
-## 模块职责
+## 文件放置规则
 
-### article
+- HTTP 请求模型放入 `web.request`，不得使用持久化实体接收请求。
+- 应用层 DTO 放入 `application.dto`；MyBatis 实体和 Mapper 放入 `infrastructure.persistence`。
+- Redis 业务缓存放入所属模块的 `infrastructure.cache`；只有无业务语义的 Redis 能力才能进入 `shared`。
+- 复杂查询按场景放入模块的 `application.query`，对 Web 层继续提供稳定的应用服务门面。
+- 模块专属配置放入模块 `infrastructure.config`；跨模块全局配置放入 `shared.config`。
+- 不新增含义模糊的 `common`、`util`、`manager`、`impl` 或全局 `task` 包。
+- 不为单一实现机械创建 `Service`/`ServiceImpl`、Repository 接口。
+- 工具代码优先保留在所属模块和所属层，满足共享准入条件后才能上移。
+- 模块根包除 `package-info.java` 外不直接存放业务类。
 
-- `ArticleCommandService` 负责文章新增、编辑、删除和事务边界。
-- `ArticleQueryService` 负责详情、最新列表和浏览量排行榜查询。
-- 正文文件引用解析、文章缓存、浏览统计和定时任务属于 `article.internal`。
+## 兼容性约束
 
-### file
+目录治理和职责拆分不得改变：
 
-- `FileService` 统一负责上传、查询、校验、绑定、释放和临时文件清理。
-- 存储接口及本地存储实现属于 `file.internal`。
-- 其他模块只能通过文件 ID 调用 `FileService`，不得依赖文件持久化对象。
+- HTTP 路径、请求字段、响应 JSON 和状态码；
+- MySQL 表结构、SQL 语句 ID 和事务边界；
+- Redis Key、TTL、缓存 JSON 字段、Lua 脚本和降级行为；
+- 文件路径规则、JWT 行为和操作日志语义。
 
-### identity
+## 评审检查清单
 
-- `AuthService` 负责登录认证和退出登录。
-- 用户持久化、登录失败计数、JWT、黑名单和安全过滤器属于 `identity.internal`。
-
-### audit
-
-- 操作日志注解是模块对外契约。
-- 切面、日志写入服务、参数脱敏、持久化和清理任务属于 `audit.internal`。
-- `OperationLogAspect` 必须通过 `OperationLogService` 写库，不能直接调用 Mapper；该独立服务是使 `@Async` 经过 Spring 代理生效的必要异步边界。
-
-### shared
-
-只有同时满足以下条件的代码才能进入 `shared`：
-
-1. 不包含文章、文件、认证或审计业务语义；
-2. 被多个模块实际使用，而不是为未来复用预先抽象；
-3. 不依赖任何业务模块。
-
-## 编码与评审规则
-
-- 新增或修改的业务代码必须带有适当的中文注释。
-- 不以文件行数作为唯一拆分标准；只有存在不同变更原因时才拆分。
-- 不为单一实现机械创建 `Service`/`ServiceImpl` 接口对。
-- 统一使用构造器注入。
-- MyBatis 接口统一以 `Mapper` 命名。
-- 定时任务放在所属业务模块，不建立全局 `task` 包。
-- 工具方法优先放在所属模块；只有符合 `shared` 准入条件时才上移。
-- 重构不得改变外部 API、MySQL 表结构、Redis Key、TTL 或降级行为。
-
-## Pull Request 检查清单
-
-- [ ] 新代码位于正确的业务模块。
-- [ ] 没有跨模块访问 `internal`、Mapper 或持久化对象。
-- [ ] 没有向 `shared` 或全局工具类加入业务逻辑。
-- [ ] Controller 没有直接访问 Mapper。
-- [ ] 接口、数据库和 Redis 兼容性未被意外改变。
+- [ ] 新类位于正确的业务模块和层级。
+- [ ] Controller 未直接引用 Mapper、持久化对象或 Store。
+- [ ] 不存在跨模块引用 `infrastructure` 或 `domain`。
+- [ ] `shared` 未引入业务语义或业务模块依赖。
+- [ ] 未新增含义模糊的全局工具包和任务包。
+- [ ] MyBatis XML namespace 与 Java Mapper 包名一致。
 - [ ] 新增或修改代码包含必要的中文注释。
-- [ ] 单元测试和端到端冒烟路径覆盖本次变更。
+- [ ] 外部接口、数据库和 Redis 兼容性未被改变。
+- [ ] JDK 17 下 `mvnw clean test` 全部通过。
