@@ -8,6 +8,7 @@ import request from "@/utils/request";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { CODE_LANGUAGE_OPTIONS, codeLowlight } from "@/utils/codeHighlight";
+import { ARTICLE_HEADING_OPTIONS } from "@/utils/articleHeadings";
 
 const fileInput = ref(null);
 const coverFileInput = ref(null);
@@ -527,22 +528,15 @@ onBeforeUnmount(() => {
       <header class="simple-editor-toolbar" v-if="editor">
         <div class="toolbar-group">
           <button
+            v-for="heading in ARTICLE_HEADING_OPTIONS"
+            :key="heading.level"
             type="button"
             class="toolbar-button"
-            :class="{ active: editor.isActive('heading', { level: 1 }) }"
-            title="一级标题"
-            @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+            :class="{ active: editor.isActive('heading', { level: heading.level }) }"
+            :title="heading.title"
+            @click="editor.chain().focus().toggleHeading({ level: heading.level }).run()"
           >
-            H1
-          </button>
-          <button
-            type="button"
-            class="toolbar-button"
-            :class="{ active: editor.isActive('heading', { level: 2 }) }"
-            title="二级标题"
-            @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-          >
-            H2
+            {{ heading.label }}
           </button>
           <button
             type="button"

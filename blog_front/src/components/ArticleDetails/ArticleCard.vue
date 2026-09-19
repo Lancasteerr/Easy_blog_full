@@ -4,6 +4,7 @@ import DOMPurify from "dompurify";
 import ArticleCatalog from "@/components/ArticleDetails/ArticleCatalog.vue";
 import { getAppScrollContainer } from "@/utils/appScroll";
 import { highlightArticleCode } from "@/utils/codeHighlight";
+import { ARTICLE_CATALOG_SELECTOR } from "@/utils/articleHeadings";
 
 const props = defineProps({
   articleHtml: {
@@ -93,7 +94,7 @@ const getUniqueHeadingId = (heading, index, usedIds) => {
 
 const buildCatalog = () => {
   const headingNodes = Array.from(
-    articleBodyRef.value?.querySelectorAll("h1, h2, h3") || []
+    articleBodyRef.value?.querySelectorAll(ARTICLE_CATALOG_SELECTOR) || []
   ).filter(heading => heading.textContent?.trim());
 
   if (!headingNodes.length) {
