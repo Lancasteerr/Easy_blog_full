@@ -1,6 +1,8 @@
 package com.febrie.demo_bk.article.internal;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -28,8 +30,12 @@ public class BlogArticle {
 
     private Long viewCount;
 
+    // 删除封面时必须让 updateById 将 NULL 显式写入数据库。
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long articleCover;
 
+    // 封面被删除时同步清空持久化的访问地址，避免遗留旧 URL。
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String coverObjectUrl;
 
     public static ArticleDTO toDTO(BlogArticle blogArticle) {
