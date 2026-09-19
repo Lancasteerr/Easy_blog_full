@@ -24,7 +24,7 @@
 - [生产部署](#生产部署)
 - [项目结构](#项目结构)
 - [接口与配置约定](#接口与配置约定)
-- [TODO List](#TODO List)
+- [TODO List](#TODOList)
 - [相关文档](#相关文档)
 
 ## 项目简介
@@ -228,7 +228,7 @@ flowchart LR
 | `DELETE` | `/api/admin/content/delarticle/{id}` | 删除文章 |
 | `POST` | `/api/admin/files/upload` | 上传文章图片 |
 
-## TODO List
+## TODOList
 
 - 补充 Swagger 或 OpenAPI 文档，方便前后端联调和接口测试。
 - 为登录、文章分页、文章保存、文件上传和 PV 刷库增加更系统的自动化测试。
