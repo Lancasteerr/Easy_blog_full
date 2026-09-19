@@ -1,9 +1,9 @@
 package com.febrie.demo_bk.article.web;
 
-import com.febrie.demo_bk.article.ArticleDTO;
-import com.febrie.demo_bk.article.ArticleListDTO;
-import com.febrie.demo_bk.article.ArticleQueryService;
-import com.febrie.demo_bk.shared.web.PageResult;
+import com.febrie.demo_bk.article.application.ArticleQueryService;
+import com.febrie.demo_bk.article.application.dto.ArticleDTO;
+import com.febrie.demo_bk.article.application.dto.ArticleListDTO;
+import com.febrie.demo_bk.shared.pagination.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;

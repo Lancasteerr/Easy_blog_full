@@ -1,6 +1,6 @@
 package com.febrie.demo_bk.identity.web;
 
-import com.febrie.demo_bk.identity.AuthService;
+import com.febrie.demo_bk.identity.application.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

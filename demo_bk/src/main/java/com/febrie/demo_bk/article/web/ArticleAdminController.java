@@ -1,9 +1,9 @@
 package com.febrie.demo_bk.article.web;
 
-import com.febrie.demo_bk.audit.OperationLoger;
-import com.febrie.demo_bk.article.ArticleCommandService;
-import com.febrie.demo_bk.article.ArticleDTO;
-import com.febrie.demo_bk.shared.web.Result;
+import com.febrie.demo_bk.audit.application.OperationLoger;
+import com.febrie.demo_bk.article.application.ArticleCommandService;
+import com.febrie.demo_bk.article.application.dto.ArticleDTO;
+import com.febrie.demo_bk.shared.web.response.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

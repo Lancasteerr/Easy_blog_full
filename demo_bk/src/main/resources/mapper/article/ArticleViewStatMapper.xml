@@ -5,10 +5,10 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 
-<mapper namespace="com.febrie.demo_bk.article.internal.ArticleViewStatMapper">
+<mapper namespace="com.febrie.demo_bk.article.infrastructure.persistence.ArticleViewStatMapper">
 
     <resultMap id="ArticleViewStatResultMap"
-               type="com.febrie.demo_bk.article.internal.ArticleViewStat">
+               type="com.febrie.demo_bk.article.infrastructure.persistence.ArticleViewStat">
 
         <id property="id"
             column="id"/>

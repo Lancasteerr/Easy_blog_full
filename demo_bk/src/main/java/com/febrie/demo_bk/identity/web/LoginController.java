@@ -1,9 +1,10 @@
 package com.febrie.demo_bk.identity.web;
 
-import com.febrie.demo_bk.audit.OperationLoger;
-import com.febrie.demo_bk.identity.AuthService;
-import com.febrie.demo_bk.shared.web.Result;
-import com.febrie.demo_bk.shared.web.RequestUtil;
+import com.febrie.demo_bk.audit.application.OperationLoger;
+import com.febrie.demo_bk.identity.application.AuthService;
+import com.febrie.demo_bk.identity.web.request.LoginRequest;
+import com.febrie.demo_bk.shared.web.request.RequestUtil;
+import com.febrie.demo_bk.shared.web.response.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

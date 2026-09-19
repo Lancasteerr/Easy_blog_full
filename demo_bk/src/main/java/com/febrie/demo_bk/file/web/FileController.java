@@ -1,7 +1,7 @@
 package com.febrie.demo_bk.file.web;
 
-import com.febrie.demo_bk.file.FileDTO;
-import com.febrie.demo_bk.file.FileService;
+import com.febrie.demo_bk.file.application.FileService;
+import com.febrie.demo_bk.file.application.dto.FileDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;

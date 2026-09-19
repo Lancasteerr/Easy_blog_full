@@ -3,7 +3,7 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.febrie.demo_bk.article.internal.ArticleMapper">
+<mapper namespace="com.febrie.demo_bk.article.infrastructure.persistence.ArticleMapper">
 
     <!-- 最新列表未命中缓存时只取 ID，排序与分页仍由 MySQL 负责。 -->
     <select id="selectArticleIdPage"
@@ -17,7 +17,7 @@
 
     <!-- Redis 状态无法确认时直接查询完整 DTO 页面，避免再次依赖缓存水合。 -->
     <select id="selectArticleListPage"
-            resultType="com.febrie.demo_bk.article.ArticleListDTO">
+            resultType="com.febrie.demo_bk.article.application.dto.ArticleListDTO">
 
         SELECT
             id,
@@ -34,7 +34,7 @@
 
     <!-- DTO 缓存部分未命中时一次性回表，避免逐篇文章查询。 -->
     <select id="selectArticleListByIds"
-            resultType="com.febrie.demo_bk.article.ArticleListDTO">
+            resultType="com.febrie.demo_bk.article.application.dto.ArticleListDTO">
 
         SELECT
             id,
