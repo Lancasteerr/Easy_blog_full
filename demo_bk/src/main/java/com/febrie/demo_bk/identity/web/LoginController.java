@@ -2,7 +2,6 @@ package com.febrie.demo_bk.identity.web;
 
 import com.febrie.demo_bk.audit.OperationLoger;
 import com.febrie.demo_bk.identity.AuthService;
-import com.febrie.demo_bk.identity.internal.User;
 import com.febrie.demo_bk.shared.web.Result;
 import com.febrie.demo_bk.shared.web.RequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,9 +23,9 @@ public class LoginController {
     @ResponseBody
     @OperationLoger(module = "登录")
     public ResponseEntity<Result> login(
-            @RequestBody User requestUser
+            @RequestBody LoginRequest loginRequest
     ) {
-        if (requestUser == null) {
+        if (loginRequest == null) {
             return ResponseEntity
                     .badRequest()
                     .body(new Result(400));
@@ -34,8 +33,8 @@ public class LoginController {
 
         String ip = RequestUtil.getIpAddress();
         return authService.authenticate(
-                        requestUser.getUserName(),
-                        requestUser.getPassword(),
+                        loginRequest.userName(),
+                        loginRequest.password(),
                         ip
                 )
                 .map(token -> ResponseEntity.ok(new Result(200, token)))
