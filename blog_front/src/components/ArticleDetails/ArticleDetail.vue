@@ -166,13 +166,13 @@ onUnmounted(() => {
 }
 
 .article-main {
-  width: min(960px, calc(100% - 32px));
+  width: min(1204px, calc(100% - 32px));
   margin: 36px auto 0;
 }
 
 @media (max-width: 640px) {
   .article-main {
-    width: min(100% - 20px, 960px);
+    width: min(100% - 20px, 1204px);
     margin-top: 28px;
   }
 }
