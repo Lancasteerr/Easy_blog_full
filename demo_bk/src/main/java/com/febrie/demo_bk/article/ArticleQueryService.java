@@ -121,7 +121,7 @@ public class ArticleQueryService {
                 throw new ResourceNotFoundException("文章不存在");
             }
 
-            ArticleDTO articleDTO = BlogArticle.toDTO(article);
+            ArticleDTO articleDTO = ArticleConverter.toDto(article);
             try {
                 if (!articleCacheStore.publishArticleDetail(articleId, articleDTO, lockHandle)) {
                     // 缓存发布失败不影响已经从数据库取得的当前响应。
@@ -754,7 +754,7 @@ public class ArticleQueryService {
         if (article == null) {
             throw new ResourceNotFoundException("文章不存在");
         }
-        return recordViewAndReturn(articleId, BlogArticle.toDTO(article));
+        return recordViewAndReturn(articleId, ArticleConverter.toDto(article));
     }
 
     private ArticleDTO recordViewAndReturn(int articleId, ArticleDTO articleDTO) {

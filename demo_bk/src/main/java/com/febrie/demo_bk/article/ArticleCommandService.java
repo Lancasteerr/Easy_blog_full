@@ -53,7 +53,7 @@ public class ArticleCommandService {
 
         boolean newArticle = articleDTO.getId() == null;
         articleDTO.setArticleDate(LocalDateTime.now(BUSINESS_ZONE));
-        BlogArticle article = BlogArticle.toPojo(articleDTO);
+        BlogArticle article = ArticleConverter.toEntity(articleDTO);
 
         if (newArticle) {
             // 浏览量只能由浏览统计维护，不能信任管理端传入的值。
