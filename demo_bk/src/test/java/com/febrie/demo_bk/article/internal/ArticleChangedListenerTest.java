@@ -1,22 +1,28 @@
 package com.febrie.demo_bk.article.internal;
 
 import com.febrie.demo_bk.file.FileService;
+import com.febrie.demo_bk.shared.infrastructure.RedisDistributedLockService;
+import com.febrie.demo_bk.shared.infrastructure.RedisDistributedLockService.LockHandle;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.support.AbstractPlatformTransactionManager;
 import org.springframework.transaction.support.DefaultTransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Duration;
 import java.util.Set;
 
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class ArticleChangedListenerTest {
 
@@ -24,31 +30,44 @@ class ArticleChangedListenerTest {
     void committedTransactionShouldRunDerivedStateSynchronization() {
         ListenerFixture fixture = new ListenerFixture();
 
-        fixture.execute(false);
+        fixture.execute(false, ArticleChangedEvent.ChangeType.CREATED);
 
-        verify(fixture.cacheStore).evictArticleDetail(7);
-        verify(fixture.cacheStore).evictArticleListDto(7);
+        verify(fixture.cacheStore).evictArticleDetail(7, fixture.detailLock);
+        verify(fixture.cacheStore).evictArticleListDto(7, fixture.listLock);
         verify(fixture.cacheStore).increaseLatestVersion();
         verify(fixture.viewStore).addRankMember(7, 0L);
         verify(fixture.fileService).deleteTempFiles(Set.of(11L));
     }
 
     @Test
+    void deletionShouldPublishNegativeCacheBeforeRemovingRankMember() {
+        ListenerFixture fixture = new ListenerFixture();
+
+        fixture.execute(false, ArticleChangedEvent.ChangeType.DELETED);
+
+        verify(fixture.cacheStore).publishMissingArticleDetail(7, fixture.detailLock);
+        verify(fixture.cacheStore).publishMissingArticleListDto(7, fixture.listLock);
+        verify(fixture.viewStore).removeRankMember(7);
+    }
+
+    @Test
     void rolledBackTransactionShouldNotRunCacheOrPhysicalFileActions() {
         ListenerFixture fixture = new ListenerFixture();
 
-        fixture.execute(true);
+        fixture.execute(true, ArticleChangedEvent.ChangeType.CREATED);
 
-        verifyNoInteractions(fixture.cacheStore, fixture.viewStore, fixture.fileService);
+        verifyNoInteractions(fixture.viewStore, fixture.fileService);
+        verify(fixture.cacheStore, org.mockito.Mockito.never()).increaseLatestVersion();
     }
 
     @Test
     void failedCacheActionShouldNotSkipRemainingCompensationActions() {
         ListenerFixture fixture = new ListenerFixture();
         doThrow(new IllegalStateException("redis unavailable"))
-                .when(fixture.cacheStore).evictArticleDetail(7);
+                .when(fixture.cacheStore)
+                .evictArticleDetail(7, fixture.detailLock);
 
-        fixture.execute(false);
+        fixture.execute(false, ArticleChangedEvent.ChangeType.CREATED);
 
         verify(fixture.cacheStore).increaseLatestVersion();
         verify(fixture.viewStore).addRankMember(7, 0L);
@@ -63,8 +82,33 @@ class ArticleChangedListenerTest {
         private final ArticleCacheStore cacheStore = mock(ArticleCacheStore.class);
         private final ArticleViewStore viewStore = mock(ArticleViewStore.class);
         private final FileService fileService = mock(FileService.class);
+        private final RedisDistributedLockService lockService =
+                mock(RedisDistributedLockService.class);
+        private final LockHandle detailLock = new LockHandle("detail-lock", "detail-token");
+        private final LockHandle listLock = new LockHandle("list-lock", "list-token");
 
-        private void execute(boolean rollback) {
+        private ListenerFixture() {
+            when(cacheStore.articleDetailLockKey(7)).thenReturn("detail-lock");
+            when(cacheStore.articleListLockKey(7)).thenReturn("list-lock");
+            when(lockService.tryLock(
+                    eq("detail-lock"),
+                    any(Duration.class),
+                    any(Duration.class)
+            )).thenReturn(detailLock);
+            when(lockService.tryLock(
+                    eq("list-lock"),
+                    any(Duration.class),
+                    any(Duration.class)
+            )).thenReturn(listLock);
+            when(lockService.unlock(any())).thenReturn(true);
+            when(cacheStore.evictArticleDetail(7, detailLock)).thenReturn(true);
+            when(cacheStore.evictArticleListDto(7, listLock)).thenReturn(true);
+            when(cacheStore.publishMissingArticleDetail(7, detailLock)).thenReturn(true);
+            when(cacheStore.publishMissingArticleListDto(7, listLock)).thenReturn(true);
+        }
+
+        private void execute(boolean rollback,
+                             ArticleChangedEvent.ChangeType changeType) {
             try (AnnotationConfigApplicationContext context =
                          new AnnotationConfigApplicationContext()) {
                 context.register(TransactionInfrastructure.class);
@@ -74,7 +118,12 @@ class ArticleChangedListenerTest {
                 );
                 context.registerBean(
                         ArticleChangedListener.class,
-                        () -> new ArticleChangedListener(cacheStore, viewStore, fileService)
+                        () -> new ArticleChangedListener(
+                                cacheStore,
+                                viewStore,
+                                fileService,
+                                lockService
+                        )
                 );
                 context.refresh();
 
@@ -83,7 +132,7 @@ class ArticleChangedListenerTest {
                 transactionTemplate.executeWithoutResult(status -> {
                     context.publishEvent(new ArticleChangedEvent(
                             7,
-                            ArticleChangedEvent.ChangeType.CREATED,
+                            changeType,
                             Set.of(11L)
                     ));
                     if (rollback) {

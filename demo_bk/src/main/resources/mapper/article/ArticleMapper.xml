@@ -15,6 +15,23 @@
 
     </select>
 
+    <!-- Redis 状态无法确认时直接查询完整 DTO 页面，避免再次依赖缓存水合。 -->
+    <select id="selectArticleListPage"
+            resultType="com.febrie.demo_bk.article.ArticleListDTO">
+
+        SELECT
+            id,
+            article_title AS articleTitle,
+            article_abstract AS articleAbstract,
+            article_date AS articleDate,
+            article_cover AS articleCover,
+            view_count AS viewCount,
+            cover_object_url AS coverURL
+        FROM blog_article
+        ${ew.customSqlSegment}
+
+    </select>
+
     <!-- DTO 缓存部分未命中时一次性回表，避免逐篇文章查询。 -->
     <select id="selectArticleListByIds"
             resultType="com.febrie.demo_bk.article.ArticleListDTO">

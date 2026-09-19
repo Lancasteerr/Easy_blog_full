@@ -2,10 +2,14 @@ package com.febrie.demo_bk.shared.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +37,17 @@ public class RedisStore {
         return stringRedisTemplate.opsForValue().get(key);
     }
 
+    /**
+     * 使用字符串序列化器并携带租期原子占位，供分布式锁使用。
+     */
+    public boolean setStringIfAbsent(String key,
+                                     String value,
+                                     Duration timeout) {
+        Boolean result = stringRedisTemplate.opsForValue()
+                .setIfAbsent(key, value, timeout);
+        return Boolean.TRUE.equals(result);
+    }
+
     //设置带过期时间的缓存
     public <T> void setObject(String key,T value, long timeout,TimeUnit unit){
         redisTemplate.opsForValue().set(key, value,timeout, unit);
@@ -45,10 +60,38 @@ public class RedisStore {
 
     //根据key获得缓存
     public <T> T getObject(String key,Class<T> clazz){
-        Object object = redisTemplate.opsForValue().get(key);
+        Object object = getRawObject(key);
 
         // 复用Spring统一配置的ObjectMapper，避免不同缓存读取路径出现序列化差异。
-        return object==null?null: objectMapper.convertValue(object,clazz);
+        return object==null?null: convertValue(object, clazz);
+    }
+
+    /**
+     * 使用项目统一的 ObjectMapper 转换 Redis 反序列化结果。
+     */
+    public <T> T convertValue(Object value, Class<T> clazz) {
+        return objectMapper.convertValue(value, clazz);
+    }
+
+    /**
+     * 原样读取缓存值，由上层先识别负缓存标记再转换 DTO。
+     */
+    public Object getRawObject(String key) {
+        return redisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * 批量原样读取缓存值，并严格保持传入 Key 的顺序。
+     */
+    public List<Object> getRawObjects(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Object> objects = redisTemplate.opsForValue().multiGet(keys);
+        return objects == null
+                ? Collections.nCopies(keys.size(), null)
+                : objects;
     }
 
     /**
@@ -59,16 +102,36 @@ public class RedisStore {
             return Collections.emptyList();
         }
 
-        List<Object> objects = redisTemplate.opsForValue().multiGet(keys);
-        if (objects == null) {
-            return Collections.nCopies(keys.size(), null);
-        }
+        List<Object> objects = getRawObjects(keys);
 
         List<T> results = new ArrayList<>(objects.size());
         for (Object object : objects) {
-            results.add(object == null ? null : objectMapper.convertValue(object, clazz));
+            results.add(object == null ? null : convertValue(object, clazz));
         }
         return results;
+    }
+
+    /**
+     * 使用 RedisTemplate 当前配置的值序列化器生成 Lua 可直接写入的内容。
+     */
+    @SuppressWarnings("unchecked")
+    public String serializeValue(Object value) {
+        RedisSerializer<Object> serializer =
+                (RedisSerializer<Object>) redisTemplate.getValueSerializer();
+        byte[] serialized = serializer.serialize(value);
+        if (serialized == null) {
+            throw new IllegalStateException("Redis缓存值序列化结果不能为空");
+        }
+        return new String(serialized, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 通过字符串模板执行 Lua，保证锁 token 与脚本参数不会被 JSON 二次编码。
+     */
+    public Long executeLongScript(DefaultRedisScript<Long> script,
+                                  List<String> keys,
+                                  String... args) {
+        return stringRedisTemplate.execute(script, keys, (Object[]) args);
     }
 
     //根据key删除缓存

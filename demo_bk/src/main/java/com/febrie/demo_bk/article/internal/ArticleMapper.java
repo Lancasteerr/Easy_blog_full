@@ -23,6 +23,15 @@ public interface ArticleMapper extends BaseMapper<BlogArticle> {
     );
 
     /**
+     * 直接查询完整 DTO 分页，用于 Redis 状态无法确认时生成可靠的当前响应。
+     */
+    Page<ArticleListDTO> selectArticleListPage(
+            Page<ArticleListDTO> page,
+            @Param(Constants.WRAPPER)
+            Wrapper<BlogArticle> queryWrapper
+    );
+
+    /**
      * 根据文章 ID 批量查询列表 DTO，返回顺序由调用方按原 ID 顺序恢复。
      */
     List<ArticleListDTO> selectArticleListByIds(

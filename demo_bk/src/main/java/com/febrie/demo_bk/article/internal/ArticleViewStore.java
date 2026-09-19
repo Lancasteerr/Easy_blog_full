@@ -161,6 +161,14 @@ public class ArticleViewStore {
         return stringRedisTemplate.hasKey(VIEW_RANK_KEY);
     }
 
+    /**
+     * 返回清理失效成员后的排行榜实时总数。
+     */
+    public long getRankSize() {
+        Long total = stringRedisTemplate.opsForZSet().zCard(VIEW_RANK_KEY);
+        return total == null ? 0L : total;
+    }
+
     public Set<Integer> getAllRankArticleIds() {
         Set<String> members = stringRedisTemplate.opsForZSet().range(VIEW_RANK_KEY, 0, -1);
         if (members == null || members.isEmpty()) {
