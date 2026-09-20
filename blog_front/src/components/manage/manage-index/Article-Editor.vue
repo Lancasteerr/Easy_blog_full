@@ -1,11 +1,11 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { EditorContent, useEditor } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Image from "@tiptap/extension-image";
 import request from "@/utils/request";
-import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { CODE_LANGUAGE_OPTIONS, codeLowlight } from "@/utils/codeHighlight";
 import { ARTICLE_HEADING_OPTIONS } from "@/utils/articleHeadings";
@@ -22,6 +22,10 @@ const route = useRoute();
 const router = useRouter();
 // Tiptap 编辑器实例不是普通响应式对象，使用计数器驱动工具栏状态重新计算。
 const editorStateTick = ref(0);
+const isDirty = ref(false);
+const isSaving = ref(false);
+// 加载已有文章时会连续写入表单与编辑器，此阶段不能误判为用户修改。
+const isHydrating = ref(true);
 // 与后端及数据库的文章标题、概要字符上限保持一致。
 const ARTICLE_TITLE_MAX_LENGTH = 40;
 const ARTICLE_ABSTRACT_MAX_LENGTH = 100;
@@ -36,6 +40,12 @@ const article = reactive({
   articleCover: null,
   coverObjectUrl: "",
 });
+
+const markDirty = () => {
+  if (!isHydrating.value) {
+    isDirty.value = true;
+  }
+};
 
 const ImageWithFileId = Image.extend({
   addAttributes() {
@@ -163,6 +173,7 @@ const editor = useEditor({
   },
   onUpdate: ({ editor }) => {
     refreshEditorState();
+    markDirty();
     deleteRemovedImages(collectImages(editor.getJSON()));
   },
   onSelectionUpdate: refreshEditorState,
@@ -189,6 +200,28 @@ const articleAbstractLength = computed(() => countUnicodeCharacters(article.arti
 const isArticleAbstractTooLong = computed(
   () => articleAbstractLength.value > ARTICLE_ABSTRACT_MAX_LENGTH
 );
+const isPublishDisabled = computed(
+  () =>
+    isEmpty.value ||
+    !article.articleTitle.trim() ||
+    isArticleTitleTooLong.value ||
+    isArticleAbstractTooLong.value ||
+    isSaving.value
+);
+const articleContentLength = computed(() => {
+  editorStateTick.value;
+  return countUnicodeCharacters(editor.value?.getText({ blockSeparator: "\n" }) || "");
+});
+const publishStatusText = computed(() => {
+  if (isSaving.value) return "发布中";
+  if (isDirty.value) return "有未发布修改";
+  return article.id ? "已发布" : "未发布";
+});
+const publishStatusClass = computed(() => ({
+  "is-saving": isSaving.value,
+  "is-dirty": isDirty.value && !isSaving.value,
+  "is-published": Boolean(article.id) && !isDirty.value && !isSaving.value,
+}));
 const isCodeBlockActive = computed(() => {
   editorStateTick.value;
   return editor.value?.isActive("codeBlock") ?? false;
@@ -201,6 +234,17 @@ const currentCodeLanguage = computed(() => {
   }
 
   return editor.value?.getAttributes("codeBlock").language || "";
+});
+const currentBlockType = computed(() => {
+  editorStateTick.value;
+
+  for (const heading of ARTICLE_HEADING_OPTIONS) {
+    if (editor.value?.isActive("heading", { level: heading.level })) {
+      return `heading-${heading.level}`;
+    }
+  }
+
+  return "paragraph";
 });
 
 const setEditorContent = content => {
@@ -225,6 +269,28 @@ const setCodeBlockLanguage = event => {
   // 语言写入 codeBlock 属性后，保存的 HTML 会带上 language-* class，阅读页可直接使用。
   editor.value.chain().focus().updateAttributes("codeBlock", { language }).run();
   refreshEditorState();
+};
+
+const setBlockType = event => {
+  if (!editor.value) return;
+
+  const value = event.target.value;
+  const chain = editor.value.chain().focus();
+
+  if (value === "paragraph") {
+    chain.setParagraph().run();
+    return;
+  }
+
+  const level = Number.parseInt(value.replace("heading-", ""), 10);
+
+  if (ARTICLE_HEADING_OPTIONS.some(option => option.level === level)) {
+    chain.setHeading({ level }).run();
+  }
+};
+
+const clearFormatting = () => {
+  editor.value?.chain().focus().unsetAllMarks().clearNodes().run();
 };
 
 const parseJsonContent = value => {
@@ -290,6 +356,7 @@ const loadArticle = async id => {
 
     await nextTick();
     setEditorContent(article.articleContentJson || article.articleContentHtml || "<p></p>");
+    isDirty.value = false;
   } catch (error) {
     if (isNotFoundStatus(error)) {
       goToNotFound();
@@ -298,6 +365,8 @@ const loadArticle = async id => {
 
     console.error("Load edit article failed:", error);
     ElMessage.error("文章加载失败");
+  } finally {
+    isHydrating.value = false;
   }
 };
 
@@ -431,7 +500,7 @@ const setLink = async () => {
 };
 
 const saveArticles = async () => {
-  if (!editor.value) return;
+  if (!editor.value || isSaving.value) return;
 
   if (!article.articleTitle.trim()) {
     ElMessage.warning("请输入文章标题");
@@ -448,6 +517,8 @@ const saveArticles = async () => {
     return;
   }
 
+  const isNewArticle = article.id === null;
+
   try {
     await ElMessageBox.confirm("是否保存并发布文章？", "提示", {
       confirmButtonText: "确定",
@@ -455,6 +526,7 @@ const saveArticles = async () => {
       type: "warning",
     });
 
+    isSaving.value = true;
     const response = await request.post("/admin/content/article", {
       id: article.id,
       articleTitle: article.articleTitle,
@@ -473,9 +545,15 @@ const saveArticles = async () => {
       sessionUploadedImages.value.clear();
       // 保存成功后封面已由后端标记为已绑定，前端不再按临时文件清理。
       sessionUploadedCoverId.value = null;
+      isDirty.value = false;
+
+      // 新建接口暂不返回文章 ID，发布后返回列表可避免再次点击造成重复创建。
+      if (isNewArticle) {
+        await router.replace({ name: "manage" });
+      }
     }
   } catch (error) {
-    if (error !== "cancel") {
+    if (error !== "cancel" && error !== "close") {
       if (error.response?.status === 404) {
         goToNotFound();
         return;
@@ -488,18 +566,56 @@ const saveArticles = async () => {
     }
 
     ElMessage.info("已取消发布");
+  } finally {
+    isSaving.value = false;
   }
 };
 
-onMounted(() => {
+const confirmDiscardChanges = async () => {
+  if (!isDirty.value || isSaving.value) return true;
+
+  try {
+    await ElMessageBox.confirm("当前修改尚未发布，确定要离开吗？", "未发布修改", {
+      confirmButtonText: "离开",
+      cancelButtonText: "继续编辑",
+      type: "warning",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const handleBeforeUnload = event => {
+  if (!isDirty.value || isSaving.value) return;
+
+  event.preventDefault();
+  event.returnValue = "";
+};
+
+watch(
+  () => [article.articleTitle, article.articleAbstract, article.articleCover],
+  markDirty
+);
+
+onBeforeRouteLeave(async () => confirmDiscardChanges());
+
+onMounted(async () => {
+  window.addEventListener("beforeunload", handleBeforeUnload);
+
   if (route.query.id) {
     loadArticle(route.query.id);
   } else if (route.params.id) {
     loadArticle(route.params.id);
+  } else {
+    await nextTick();
+    isHydrating.value = false;
+    isDirty.value = false;
   }
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
   sessionUploadedImages.value.forEach((src, id) => {
     deleteImageById(id);
   });
@@ -510,11 +626,21 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="editor">
-    <div class="article-meta-field" :class="{ 'is-invalid': isArticleTitleTooLong }">
+    <header class="editor-publish-header">
+      <div class="publish-heading">
+        <span class="publish-title">{{ article.id ? "编辑文章" : "发布图文" }}</span>
+        <span class="publish-status" :class="publishStatusClass" aria-live="polite">
+          {{ publishStatusText }}
+        </span>
+      </div>
+      <span class="publish-type">富文本文章</span>
+    </header>
+
+    <div class="article-meta-field title-field" :class="{ 'is-invalid': isArticleTitleTooLong }">
       <el-input
         v-model="article.articleTitle"
         class="article-input"
-        placeholder="请输入文章标题"
+        placeholder="请输入文章标题（必填）"
         :aria-invalid="isArticleTitleTooLong"
       />
       <div class="article-meta-feedback" aria-live="polite">
@@ -526,79 +652,56 @@ onBeforeUnmount(() => {
         </span>
       </div>
     </div>
-    <div class="article-meta-field" :class="{ 'is-invalid': isArticleAbstractTooLong }">
-      <el-input
-        v-model="article.articleAbstract"
-        class="article-input"
-        placeholder="请输入文章概要"
-        :aria-invalid="isArticleAbstractTooLong"
-      />
-      <div class="article-meta-feedback" aria-live="polite">
-        <span class="article-meta-error">
-          {{ isArticleAbstractTooLong ? "文章概要不能超过100个字符" : "" }}
-        </span>
-        <span class="article-meta-count" :class="{ 'is-over-limit': isArticleAbstractTooLong }">
-          {{ articleAbstractLength }}/{{ ARTICLE_ABSTRACT_MAX_LENGTH }}
-        </span>
-      </div>
-    </div>
-
-    <section class="cover-uploader">
-      <div class="cover-preview" :class="{ empty: !article.coverObjectUrl }">
-        <img v-if="article.coverObjectUrl" :src="article.coverObjectUrl" alt="文章封面预览" />
-        <span v-else>暂无封面</span>
-      </div>
-
-      <div class="cover-actions">
-        <div class="cover-title">文章封面</div>
-        <div class="cover-buttons">
-          <el-button type="primary" plain :loading="coverUploading" @click="chooseCover">
-            {{ article.coverObjectUrl ? "更换封面" : "上传封面" }}
-          </el-button>
-          <el-button
-            v-if="article.coverObjectUrl"
-            type="danger"
-            plain
-            :disabled="coverUploading"
-            @click="removeArticleCover"
-          >
-            移除封面
-          </el-button>
-        </div>
-      </div>
-
-      <input
-        ref="coverFileInput"
-        class="file-input"
-        type="file"
-        accept="image/*"
-        @change="uploadCover"
-      />
-    </section>
 
     <section class="simple-editor">
       <header class="simple-editor-toolbar" v-if="editor">
         <div class="toolbar-group">
           <button
-            v-for="heading in ARTICLE_HEADING_OPTIONS"
-            :key="heading.level"
             type="button"
             class="toolbar-button"
-            :class="{ active: editor.isActive('heading', { level: heading.level }) }"
-            :title="heading.title"
-            @click="editor.chain().focus().toggleHeading({ level: heading.level }).run()"
+            title="撤销"
+            aria-label="撤销"
+            :disabled="!canUndo"
+            @click="editor.chain().focus().undo().run()"
           >
-            {{ heading.label }}
+            ↶
           </button>
           <button
             type="button"
             class="toolbar-button"
-            :class="{ active: editor.isActive('paragraph') }"
-            title="正文"
-            @click="editor.chain().focus().setParagraph().run()"
+            title="重做"
+            aria-label="重做"
+            :disabled="!canRedo"
+            @click="editor.chain().focus().redo().run()"
           >
-            P
+            ↷
           </button>
+          <button
+            type="button"
+            class="toolbar-button clear-button"
+            title="清除格式"
+            aria-label="清除格式"
+            @click="clearFormatting"
+          >
+            Tx
+          </button>
+        </div>
+
+        <div class="toolbar-group">
+          <button type="button" class="toolbar-button text-button" title="上传图片" aria-label="上传图片" @click="chooseImage">
+            图片
+          </button>
+          <button
+            type="button"
+            class="toolbar-button text-button"
+            :class="{ active: editor.isActive('link') }"
+            title="添加或移除链接"
+            aria-label="添加或移除链接"
+            @click="setLink"
+          >
+            链接
+          </button>
+          <input ref="fileInput" class="file-input" type="file" accept="image/*" @change="uploadImage" />
         </div>
 
         <div class="toolbar-group">
@@ -607,6 +710,7 @@ onBeforeUnmount(() => {
             class="toolbar-button"
             :class="{ active: editor.isActive('bold') }"
             title="加粗"
+            aria-label="加粗"
             @click="editor.chain().focus().toggleBold().run()"
           >
             B
@@ -616,15 +720,27 @@ onBeforeUnmount(() => {
             class="toolbar-button italic"
             :class="{ active: editor.isActive('italic') }"
             title="斜体"
+            aria-label="斜体"
             @click="editor.chain().focus().toggleItalic().run()"
           >
             I
           </button>
           <button
             type="button"
+            class="toolbar-button underline"
+            :class="{ active: editor.isActive('underline') }"
+            title="下划线"
+            aria-label="下划线"
+            @click="editor.chain().focus().toggleUnderline().run()"
+          >
+            U
+          </button>
+          <button
+            type="button"
             class="toolbar-button"
             :class="{ active: editor.isActive('strike') }"
             title="删除线"
+            aria-label="删除线"
             @click="editor.chain().focus().toggleStrike().run()"
           >
             S
@@ -634,24 +750,91 @@ onBeforeUnmount(() => {
             class="toolbar-button"
             :class="{ active: editor.isActive('code') }"
             title="行内代码"
+            aria-label="行内代码"
             @click="editor.chain().focus().toggleCode().run()"
           >
             &lt;/&gt;
           </button>
+        </div>
+
+        <div class="toolbar-group">
+          <select
+            class="toolbar-select block-type-select"
+            :value="currentBlockType"
+            title="段落样式"
+            aria-label="段落样式"
+            @change="setBlockType"
+          >
+            <option value="paragraph">正文</option>
+            <option
+              v-for="heading in ARTICLE_HEADING_OPTIONS"
+              :key="heading.level"
+              :value="`heading-${heading.level}`"
+            >
+              {{ heading.title }}
+            </option>
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <button
+            type="button"
+            class="toolbar-button"
+            :class="{ active: editor.isActive('bulletList') }"
+            title="无序列表"
+            aria-label="无序列表"
+            @click="editor.chain().focus().toggleBulletList().run()"
+          >
+            •
+          </button>
+          <button
+            type="button"
+            class="toolbar-button"
+            :class="{ active: editor.isActive('orderedList') }"
+            title="有序列表"
+            aria-label="有序列表"
+            @click="editor.chain().focus().toggleOrderedList().run()"
+          >
+            1.
+          </button>
+          <button
+            type="button"
+            class="toolbar-button"
+            :class="{ active: editor.isActive('blockquote') }"
+            title="引用"
+            aria-label="引用"
+            @click="editor.chain().focus().toggleBlockquote().run()"
+          >
+            “
+          </button>
+          <button
+            type="button"
+            class="toolbar-button"
+            title="分割线"
+            aria-label="分割线"
+            @click="editor.chain().focus().setHorizontalRule().run()"
+          >
+            —
+          </button>
+        </div>
+
+        <div class="toolbar-group">
           <button
             type="button"
             class="toolbar-button code-block-button"
             :class="{ active: editor.isActive('codeBlock') }"
             title="代码块"
+            aria-label="代码块"
             @click="editor.chain().focus().toggleCodeBlock().run()"
           >
             Code
           </button>
           <select
+            v-if="isCodeBlockActive"
             class="toolbar-select code-language-select"
             :value="currentCodeLanguage"
-            :disabled="!isCodeBlockActive"
             title="代码语言"
+            aria-label="代码语言"
             @change="setCodeBlockLanguage"
           >
             <option
@@ -663,101 +846,134 @@ onBeforeUnmount(() => {
             </option>
           </select>
         </div>
-
-        <div class="toolbar-group">
-          <button
-            type="button"
-            class="toolbar-button"
-            :class="{ active: editor.isActive('bulletList') }"
-            title="无序列表"
-            @click="editor.chain().focus().toggleBulletList().run()"
-          >
-            •
-          </button>
-          <button
-            type="button"
-            class="toolbar-button"
-            :class="{ active: editor.isActive('orderedList') }"
-            title="有序列表"
-            @click="editor.chain().focus().toggleOrderedList().run()"
-          >
-            1.
-          </button>
-          <button
-            type="button"
-            class="toolbar-button"
-            :class="{ active: editor.isActive('blockquote') }"
-            title="引用"
-            @click="editor.chain().focus().toggleBlockquote().run()"
-          >
-            “
-          </button>
-          <button
-            type="button"
-            class="toolbar-button"
-            title="分割线"
-            @click="editor.chain().focus().setHorizontalRule().run()"
-          >
-            HR
-          </button>
-        </div>
-
-        <div class="toolbar-group">
-          <button
-            type="button"
-            class="toolbar-button"
-            :class="{ active: editor.isActive('link') }"
-            title="链接"
-            @click="setLink"
-          >
-            Link
-          </button>
-          <button type="button" class="toolbar-button" title="上传图片" @click="chooseImage">
-            Img
-          </button>
-          <input ref="fileInput" class="file-input" type="file" accept="image/*" @change="uploadImage" />
-        </div>
-
-        <div class="toolbar-group push-right">
-          <button
-            type="button"
-            class="toolbar-button"
-            title="撤销"
-            :disabled="!canUndo"
-            @click="editor.chain().focus().undo().run()"
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            class="toolbar-button"
-            title="重做"
-            :disabled="!canRedo"
-            @click="editor.chain().focus().redo().run()"
-          >
-            Redo
-          </button>
-          <button type="button" class="save-button" :disabled="isEmpty" @click="saveArticles">
-            保存发布
-          </button>
-        </div>
       </header>
 
       <!-- 正文不再创建独立纵向滚动区，统一交给应用主滚动容器承载。 -->
       <EditorContent class="editor-content" :editor="editor" />
+      <div class="editor-word-count" aria-live="polite">{{ articleContentLength }} 字</div>
+    </section>
+
+    <section class="publish-settings">
+      <h2 class="settings-heading">发布设置</h2>
+
+      <div class="setting-item">
+        <label class="setting-label">文章概要</label>
+        <div class="article-meta-field" :class="{ 'is-invalid': isArticleAbstractTooLong }">
+          <el-input
+            v-model="article.articleAbstract"
+            class="article-input"
+            placeholder="请输入文章概要"
+            :aria-invalid="isArticleAbstractTooLong"
+          />
+          <div class="article-meta-feedback" aria-live="polite">
+            <span class="article-meta-error">
+              {{ isArticleAbstractTooLong ? "文章概要不能超过100个字符" : "" }}
+            </span>
+            <span class="article-meta-count" :class="{ 'is-over-limit': isArticleAbstractTooLong }">
+              {{ articleAbstractLength }}/{{ ARTICLE_ABSTRACT_MAX_LENGTH }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <label class="setting-label">文章封面</label>
+        <section class="cover-uploader">
+          <div class="cover-preview" :class="{ empty: !article.coverObjectUrl }">
+            <img v-if="article.coverObjectUrl" :src="article.coverObjectUrl" alt="文章封面预览" />
+            <span v-else>暂无封面</span>
+          </div>
+
+          <div class="cover-actions">
+            <p class="cover-description">建议使用 16:9 图片，作为文章列表和详情页封面。</p>
+            <div class="cover-buttons">
+              <el-button type="primary" plain :loading="coverUploading" :disabled="isSaving" @click="chooseCover">
+                {{ article.coverObjectUrl ? "更换封面" : "上传封面" }}
+              </el-button>
+              <el-button
+                v-if="article.coverObjectUrl"
+                type="danger"
+                plain
+                :disabled="coverUploading || isSaving"
+                @click="removeArticleCover"
+              >
+                移除封面
+              </el-button>
+            </div>
+          </div>
+
+          <input
+            ref="coverFileInput"
+            class="file-input"
+            type="file"
+            accept="image/*"
+            @change="uploadCover"
+          />
+        </section>
+      </div>
+
+      <div class="publish-actions">
+        <button
+          type="button"
+          class="publish-button"
+          :disabled="isPublishDisabled"
+          @click="saveArticles"
+        >
+          {{ isSaving ? "发布中..." : "保存发布" }}
+        </button>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped lang="scss">
 .editor {
-  width: 99%;
-  // 约等于原来外层卡片 99% 的高度，短文章仍保留宽敞的写作区域。
+  width: 100%;
   min-height: 792px;
   height: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
+  color: #222222;
+}
+
+.editor-publish-header {
+  min-height: 38px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.publish-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.publish-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.publish-status,
+.publish-type {
+  color: #a1a1a1;
+  font-size: 12px;
+}
+
+.publish-status.is-dirty {
+  color: #d18a00;
+}
+
+.publish-status.is-saving {
+  color: #1677d2;
+}
+
+.publish-status.is-published {
+  color: #5d8f00;
 }
 
 .article-input {
@@ -766,6 +982,18 @@ onBeforeUnmount(() => {
 
 .article-meta-field {
   flex: 0 0 auto;
+}
+
+.title-field :deep(.el-input__wrapper) {
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px #e7e7e7 inset;
+}
+
+.title-field :deep(.el-input__inner) {
+  color: #222222;
+  font-size: 16px;
 }
 
 .article-meta-feedback {
@@ -790,14 +1018,9 @@ onBeforeUnmount(() => {
 }
 
 .cover-uploader {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 10px 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
 }
 
 .cover-preview {
@@ -832,10 +1055,11 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-.cover-title {
-  color: #303133;
-  font-size: 15px;
-  font-weight: 600;
+.cover-description {
+  margin: 0;
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .cover-buttons {
@@ -849,55 +1073,60 @@ onBeforeUnmount(() => {
   flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  // 保持纵向可见，避免该层截断 sticky 与正文的自然高度。
+  // sticky 的所有祖先都必须保持纵向可见，否则工具栏会退化为普通定位。
   overflow: visible;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e7e7e7;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .simple-editor-toolbar {
-  // 工具栏以 App.vue 的主滚动区为参照，在 80px 高的后台页眉下方吸顶。
+  // 偏移量由编辑页外壳统一提供，桌面端对应悬浮头部下方的 100px 位置。
   position: sticky;
-  top: 80px;
-  // 层级低于后台页眉，避免工具栏侵入或遮挡导航区域。
-  z-index: 3;
+  top: var(--article-editor-sticky-top, 100px);
+  z-index: 20;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-bottom: 1px solid #e4e7ed;
-  border-radius: 7px 7px 0 0;
-  background: #f7f8fa;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eeeeee;
+  border-radius: 9px 9px 0 0;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .editor-content {
   flex: 1 0 auto;
 }
 
+.editor-word-count {
+  padding: 0 16px 14px;
+  color: #b1b1b1;
+  font-size: 12px;
+  text-align: right;
+}
+
 .toolbar-group {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding-right: 8px;
-  border-right: 1px solid #dcdfe6;
+  padding-right: 6px;
+  border-right: 1px solid #ebebeb;
 }
 
 .toolbar-group:last-child {
   border-right: 0;
 }
 
-.push-right {
-  margin-left: auto;
-}
-
-.toolbar-button,
-.save-button {
+.toolbar-button {
   height: 32px;
   min-width: 32px;
+  padding: 0 7px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -905,6 +1134,12 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar-button.text-button,
+.code-block-button {
+  min-width: auto;
 }
 
 .toolbar-select {
@@ -930,8 +1165,13 @@ onBeforeUnmount(() => {
   background: #eef0f3;
 }
 
+.block-type-select {
+  min-width: 88px;
+}
+
 .code-language-select {
-  flex: 0 0 128px;
+  flex: 0 0 116px;
+  min-width: 116px;
 }
 
 .toolbar-button:hover,
@@ -942,7 +1182,7 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-button:disabled,
-.save-button:disabled {
+.publish-button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
@@ -951,15 +1191,12 @@ onBeforeUnmount(() => {
   font-style: italic;
 }
 
-.save-button {
-  min-width: 84px;
-  padding: 0 14px;
-  background: #1677d2;
-  color: #fff;
+.underline {
+  text-decoration: underline;
 }
 
-.save-button:hover:not(:disabled) {
-  background: #0f66b8;
+.clear-button {
+  text-decoration: line-through;
 }
 
 .file-input {
@@ -967,10 +1204,10 @@ onBeforeUnmount(() => {
 }
 
 :deep(.simple-editor-content) {
-  min-height: 480px;
+  min-height: 520px;
   max-width: none;
   margin: 0;
-  padding: 28px 34px;
+  padding: 30px 18px;
   box-sizing: border-box;
   outline: none;
 }
@@ -988,7 +1225,74 @@ onBeforeUnmount(() => {
   border-radius: 6px;
 }
 
+.publish-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 8px;
+}
+
+.settings-heading {
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eeeeee;
+  color: #222222;
+  font-size: 18px;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setting-label {
+  color: #222222;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.publish-actions {
+  padding-top: 2px;
+}
+
+.publish-button {
+  min-width: 160px;
+  height: 42px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 8px;
+  background: #c8f300;
+  color: #1f2500;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.publish-button:hover:not(:disabled) {
+  background: #b8e000;
+  transform: translateY(-1px);
+}
+
 @media (max-width: 640px) {
+  .editor {
+    gap: 14px;
+  }
+
+  .editor-publish-header {
+    align-items: flex-start;
+  }
+
+  .publish-type {
+    display: none;
+  }
+
+  :deep(.simple-editor-content) {
+    min-height: 440px;
+    padding: 24px 16px;
+  }
+
   .cover-uploader {
     align-items: stretch;
     flex-direction: column;
@@ -999,6 +1303,10 @@ onBeforeUnmount(() => {
     height: auto;
     aspect-ratio: 16 / 9;
     flex-basis: auto;
+  }
+
+  .publish-button {
+    width: 100%;
   }
 }
 </style>

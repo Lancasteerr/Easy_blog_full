@@ -20,5 +20,5 @@ const handleAction = actionName => {
 </script>
 
 <template>
-  <AdminHeader variant="transparent" :actions="headerActions" @action="handleAction"></AdminHeader>
+  <AdminHeader variant="floating" :actions="headerActions" @action="handleAction"></AdminHeader>
 </template>

@@ -11,20 +11,22 @@ import ArticleEditor from "@/components/manage/manage-index/Article-Editor.vue";
 
 <style scoped lang="scss">
 .index-container{
-  //position: absolute;
-  //left: 10%;
-  //top: 90px;
-  margin-left: 10%;
-  margin-top: 3%;
-  width: 80%;
-  // 短文章保留原有编辑空间，长文章则由内容自然撑高整张卡片。
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto 16px;
+  // 桌面端 1200px 纸张内保留约 820px 写作列，窄屏时平滑收缩内边距。
+  padding: 40px clamp(24px, 12.7vw, 190px);
   min-height: 800px;
   height: auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: rgb(255, 255, 255);
+  background-color: #ffffff;
   border-radius: 12px;
   box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .index-container{
+    width: calc(100% - 16px);
+    padding: 24px 16px 28px;
+    border-radius: 10px;
+  }
 }
 </style>
