@@ -180,7 +180,7 @@ class ArticleCommandServiceTest {
 
         assertThatThrownBy(() -> commandService.save(articleDTO))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("文章概要不能超过255个字符");
+                .hasMessage("文章概要不能超过100个字符");
 
         verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
     }
