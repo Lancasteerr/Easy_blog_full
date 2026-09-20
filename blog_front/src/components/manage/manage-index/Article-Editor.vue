@@ -23,8 +23,8 @@ const router = useRouter();
 // Tiptap 编辑器实例不是普通响应式对象，使用计数器驱动工具栏状态重新计算。
 const editorStateTick = ref(0);
 // 与后端及数据库的文章标题、概要字符上限保持一致。
-const ARTICLE_TITLE_MAX_LENGTH = 255;
-const ARTICLE_ABSTRACT_MAX_LENGTH = 255;
+const ARTICLE_TITLE_MAX_LENGTH = 40;
+const ARTICLE_ABSTRACT_MAX_LENGTH = 100;
 
 const article = reactive({
   id: null,
@@ -439,12 +439,12 @@ const saveArticles = async () => {
   }
 
   if (isArticleTitleTooLong.value) {
-    ElMessage.warning("文章标题不能超过255个字符");
+    ElMessage.warning("文章标题不能超过40个字符");
     return;
   }
 
   if (isArticleAbstractTooLong.value) {
-    ElMessage.warning("文章概要不能超过255个字符");
+    ElMessage.warning("文章概要不能超过100个字符");
     return;
   }
 
@@ -519,7 +519,7 @@ onBeforeUnmount(() => {
       />
       <div class="article-meta-feedback" aria-live="polite">
         <span class="article-meta-error">
-          {{ isArticleTitleTooLong ? "文章标题不能超过255个字符" : "" }}
+          {{ isArticleTitleTooLong ? "文章标题不能超过40个字符" : "" }}
         </span>
         <span class="article-meta-count" :class="{ 'is-over-limit': isArticleTitleTooLong }">
           {{ articleTitleLength }}/{{ ARTICLE_TITLE_MAX_LENGTH }}
@@ -535,7 +535,7 @@ onBeforeUnmount(() => {
       />
       <div class="article-meta-feedback" aria-live="polite">
         <span class="article-meta-error">
-          {{ isArticleAbstractTooLong ? "文章概要不能超过255个字符" : "" }}
+          {{ isArticleAbstractTooLong ? "文章概要不能超过100个字符" : "" }}
         </span>
         <span class="article-meta-count" :class="{ 'is-over-limit': isArticleAbstractTooLong }">
           {{ articleAbstractLength }}/{{ ARTICLE_ABSTRACT_MAX_LENGTH }}

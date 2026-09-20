@@ -52,7 +52,7 @@ class ArticleAdminControllerTest {
 
     @Test
     void saveShouldReturnBadRequestWhenAbstractIsTooLong() throws Exception {
-        doThrow(new IllegalArgumentException("文章概要不能超过255个字符"))
+        doThrow(new IllegalArgumentException("文章概要不能超过100个字符"))
                 .when(articleCommandService)
                 .save(any(ArticleDTO.class));
 
@@ -66,13 +66,13 @@ class ArticleAdminControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("文章概要不能超过255个字符"))
+                .andExpect(jsonPath("$.message").value("文章概要不能超过100个字符"))
                 .andExpect(jsonPath("$.path").value("/api/admin/content/article"));
     }
 
     @Test
     void saveShouldReturnBadRequestWhenTitleIsTooLong() throws Exception {
-        doThrow(new IllegalArgumentException("文章标题不能超过255个字符"))
+        doThrow(new IllegalArgumentException("文章标题不能超过40个字符"))
                 .when(articleCommandService)
                 .save(any(ArticleDTO.class));
 
@@ -86,7 +86,7 @@ class ArticleAdminControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("文章标题不能超过255个字符"))
+                .andExpect(jsonPath("$.message").value("文章标题不能超过40个字符"))
                 .andExpect(jsonPath("$.path").value("/api/admin/content/article"));
     }
 }

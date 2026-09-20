@@ -100,9 +100,9 @@ class ArticleCommandServiceTest {
     }
 
     @Test
-    void createShouldAllowTitleWithExactly255UnicodeCharacters() {
+    void createShouldAllowTitleWithExactly40UnicodeCharacters() {
         ArticleDTO articleDTO = article("json", "html", null);
-        articleDTO.setArticleTitle("😀".repeat(255));
+        articleDTO.setArticleTitle("😀".repeat(40));
         when(fileExtractor.extract("json", "html", null)).thenReturn(Set.of());
         doAnswer(invocation -> {
             BlogArticle inserted = invocation.getArgument(0);
@@ -115,17 +115,17 @@ class ArticleCommandServiceTest {
         ArgumentCaptor<BlogArticle> articleCaptor = ArgumentCaptor.forClass(BlogArticle.class);
         verify(articleMapper).insert(articleCaptor.capture());
         assertThat(articleCaptor.getValue().getArticleTitle())
-                .isEqualTo("😀".repeat(255));
+                .isEqualTo("😀".repeat(40));
     }
 
     @Test
-    void createShouldRejectTitleLongerThan255CharactersBeforeSideEffects() {
+    void createShouldRejectTitleLongerThan40CharactersBeforeSideEffects() {
         ArticleDTO articleDTO = article("json", "html", null);
-        articleDTO.setArticleTitle("题".repeat(256));
+        articleDTO.setArticleTitle("题".repeat(41));
 
         assertThatThrownBy(() -> commandService.save(articleDTO))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("文章标题不能超过255个字符");
+                .hasMessage("文章标题不能超过40个字符");
 
         verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
     }
@@ -133,19 +133,19 @@ class ArticleCommandServiceTest {
     @Test
     void updateShouldRejectOverlongUnicodeTitleBeforeLoadingOldArticle() {
         ArticleDTO articleDTO = article("json", "html", 8);
-        articleDTO.setArticleTitle("😀".repeat(256));
+        articleDTO.setArticleTitle("😀".repeat(41));
 
         assertThatThrownBy(() -> commandService.save(articleDTO))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("文章标题不能超过255个字符");
+                .hasMessage("文章标题不能超过40个字符");
 
         verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
     }
 
     @Test
-    void createShouldAllowAbstractWithExactly255UnicodeCharacters() {
+    void createShouldAllowAbstractWithExactly100UnicodeCharacters() {
         ArticleDTO articleDTO = article("json", "html", null);
-        articleDTO.setArticleAbstract("😀".repeat(255));
+        articleDTO.setArticleAbstract("😀".repeat(100));
         when(fileExtractor.extract("json", "html", null)).thenReturn(Set.of());
         doAnswer(invocation -> {
             BlogArticle inserted = invocation.getArgument(0);
@@ -158,17 +158,17 @@ class ArticleCommandServiceTest {
         ArgumentCaptor<BlogArticle> articleCaptor = ArgumentCaptor.forClass(BlogArticle.class);
         verify(articleMapper).insert(articleCaptor.capture());
         assertThat(articleCaptor.getValue().getArticleAbstract())
-                .isEqualTo("😀".repeat(255));
+                .isEqualTo("😀".repeat(100));
     }
 
     @Test
     void createShouldRejectAbstractLongerThan255CharactersBeforeSideEffects() {
         ArticleDTO articleDTO = article("json", "html", null);
-        articleDTO.setArticleAbstract("摘".repeat(256));
+        articleDTO.setArticleAbstract("摘".repeat(101));
 
         assertThatThrownBy(() -> commandService.save(articleDTO))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("文章概要不能超过255个字符");
+                .hasMessage("文章概要不能超过100个字符");
 
         verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
     }
@@ -176,7 +176,7 @@ class ArticleCommandServiceTest {
     @Test
     void updateShouldRejectOverlongUnicodeAbstractBeforeLoadingOldArticle() {
         ArticleDTO articleDTO = article("json", "html", 8);
-        articleDTO.setArticleAbstract("😀".repeat(256));
+        articleDTO.setArticleAbstract("😀".repeat(101));
 
         assertThatThrownBy(() -> commandService.save(articleDTO))
                 .isInstanceOf(IllegalArgumentException.class)
