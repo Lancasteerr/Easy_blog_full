@@ -26,6 +26,10 @@ import java.util.Set;
 public class ArticleCommandService {
 
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
+    // 与数据库 article_title VARCHAR(255) 的字符容量保持一致。
+    private static final int ARTICLE_TITLE_MAX_LENGTH = 255;
+    // 与数据库 article_abstract VARCHAR(255) 的字符容量保持一致。
+    private static final int ARTICLE_ABSTRACT_MAX_LENGTH = 255;
 
     private final ArticleMapper articleMapper;
     private final FileService fileService;
@@ -40,6 +44,8 @@ public class ArticleCommandService {
         if (articleDTO == null) {
             throw new IllegalArgumentException("文章内容不能为空");
         }
+        validateArticleTitle(articleDTO.getArticleTitle());
+        validateArticleAbstract(articleDTO.getArticleAbstract());
 
         BlogArticle oldArticle = findOldArticle(articleDTO.getId());
         Set<Long> oldFileIds = extractFileIds(oldArticle);
@@ -146,5 +152,27 @@ public class ArticleCommandService {
         if (articleId <= 0) {
             throw new IllegalArgumentException("文章ID不合法");
         }
+    }
+
+    private void validateArticleTitle(String articleTitle) {
+        if (exceedsCharacterLimit(articleTitle, ARTICLE_TITLE_MAX_LENGTH)) {
+            throw new IllegalArgumentException("文章标题不能超过255个字符");
+        }
+    }
+
+    private void validateArticleAbstract(String articleAbstract) {
+        if (exceedsCharacterLimit(articleAbstract, ARTICLE_ABSTRACT_MAX_LENGTH)) {
+            throw new IllegalArgumentException("文章概要不能超过255个字符");
+        }
+    }
+
+    private boolean exceedsCharacterLimit(String value, int maxLength) {
+        if (value == null) {
+            return false;
+        }
+
+        // 按 Unicode 码点计数，避免一个 emoji 被 Java 的 UTF-16 长度算作两个字符。
+        int characterCount = value.codePointCount(0, value.length());
+        return characterCount > maxLength;
     }
 }

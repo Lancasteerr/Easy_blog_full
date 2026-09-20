@@ -22,6 +22,9 @@ const route = useRoute();
 const router = useRouter();
 // Tiptap 编辑器实例不是普通响应式对象，使用计数器驱动工具栏状态重新计算。
 const editorStateTick = ref(0);
+// 与后端及数据库的文章标题、概要字符上限保持一致。
+const ARTICLE_TITLE_MAX_LENGTH = 255;
+const ARTICLE_ABSTRACT_MAX_LENGTH = 255;
 
 const article = reactive({
   id: null,
@@ -178,6 +181,14 @@ const isEmpty = computed(() => {
   editorStateTick.value;
   return editor.value?.isEmpty ?? true;
 });
+// Array.from 按 Unicode 码点拆分，保证 emoji 与后端一样按一个字符计算。
+const countUnicodeCharacters = value => Array.from(value || "").length;
+const articleTitleLength = computed(() => countUnicodeCharacters(article.articleTitle));
+const isArticleTitleTooLong = computed(() => articleTitleLength.value > ARTICLE_TITLE_MAX_LENGTH);
+const articleAbstractLength = computed(() => countUnicodeCharacters(article.articleAbstract));
+const isArticleAbstractTooLong = computed(
+  () => articleAbstractLength.value > ARTICLE_ABSTRACT_MAX_LENGTH
+);
 const isCodeBlockActive = computed(() => {
   editorStateTick.value;
   return editor.value?.isActive("codeBlock") ?? false;
@@ -427,6 +438,16 @@ const saveArticles = async () => {
     return;
   }
 
+  if (isArticleTitleTooLong.value) {
+    ElMessage.warning("文章标题不能超过255个字符");
+    return;
+  }
+
+  if (isArticleAbstractTooLong.value) {
+    ElMessage.warning("文章概要不能超过255个字符");
+    return;
+  }
+
   try {
     await ElMessageBox.confirm("是否保存并发布文章？", "提示", {
       confirmButtonText: "确定",
@@ -461,7 +482,8 @@ const saveArticles = async () => {
       }
 
       console.error("Save article failed:", error);
-      ElMessage.error("保存失败");
+      const serverMessage = error.response?.data?.message;
+      ElMessage.error(error.response?.status === 400 && serverMessage ? serverMessage : "保存失败");
       return;
     }
 
@@ -488,8 +510,38 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="editor">
-    <el-input v-model="article.articleTitle" class="article-input" placeholder="请输入文章标题" />
-    <el-input v-model="article.articleAbstract" class="article-input" placeholder="请输入文章概要" />
+    <div class="article-meta-field" :class="{ 'is-invalid': isArticleTitleTooLong }">
+      <el-input
+        v-model="article.articleTitle"
+        class="article-input"
+        placeholder="请输入文章标题"
+        :aria-invalid="isArticleTitleTooLong"
+      />
+      <div class="article-meta-feedback" aria-live="polite">
+        <span class="article-meta-error">
+          {{ isArticleTitleTooLong ? "文章标题不能超过255个字符" : "" }}
+        </span>
+        <span class="article-meta-count" :class="{ 'is-over-limit': isArticleTitleTooLong }">
+          {{ articleTitleLength }}/{{ ARTICLE_TITLE_MAX_LENGTH }}
+        </span>
+      </div>
+    </div>
+    <div class="article-meta-field" :class="{ 'is-invalid': isArticleAbstractTooLong }">
+      <el-input
+        v-model="article.articleAbstract"
+        class="article-input"
+        placeholder="请输入文章概要"
+        :aria-invalid="isArticleAbstractTooLong"
+      />
+      <div class="article-meta-feedback" aria-live="polite">
+        <span class="article-meta-error">
+          {{ isArticleAbstractTooLong ? "文章概要不能超过255个字符" : "" }}
+        </span>
+        <span class="article-meta-count" :class="{ 'is-over-limit': isArticleAbstractTooLong }">
+          {{ articleAbstractLength }}/{{ ARTICLE_ABSTRACT_MAX_LENGTH }}
+        </span>
+      </div>
+    </div>
 
     <section class="cover-uploader">
       <div class="cover-preview" :class="{ empty: !article.coverObjectUrl }">
@@ -710,6 +762,31 @@ onBeforeUnmount(() => {
 
 .article-input {
   flex: 0 0 auto;
+}
+
+.article-meta-field {
+  flex: 0 0 auto;
+}
+
+.article-meta-feedback {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 4px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #909399;
+}
+
+.article-meta-error,
+.article-meta-count.is-over-limit {
+  color: #f56c6c;
+}
+
+.article-meta-field.is-invalid :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px #f56c6c inset;
 }
 
 .cover-uploader {

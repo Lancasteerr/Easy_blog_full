@@ -14,10 +14,12 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ArticleCommandServiceTest {
@@ -95,6 +97,92 @@ class ArticleCommandServiceTest {
         ArticleChangedEvent event = captureEvent();
         assertThat(event.changeType()).isEqualTo(ArticleChangedEvent.ChangeType.UPDATED);
         assertThat(event.releasedFileIds()).containsExactly(1L);
+    }
+
+    @Test
+    void createShouldAllowTitleWithExactly255UnicodeCharacters() {
+        ArticleDTO articleDTO = article("json", "html", null);
+        articleDTO.setArticleTitle("😀".repeat(255));
+        when(fileExtractor.extract("json", "html", null)).thenReturn(Set.of());
+        doAnswer(invocation -> {
+            BlogArticle inserted = invocation.getArgument(0);
+            inserted.setId(10);
+            return 1;
+        }).when(articleMapper).insert(any(BlogArticle.class));
+
+        commandService.save(articleDTO);
+
+        ArgumentCaptor<BlogArticle> articleCaptor = ArgumentCaptor.forClass(BlogArticle.class);
+        verify(articleMapper).insert(articleCaptor.capture());
+        assertThat(articleCaptor.getValue().getArticleTitle())
+                .isEqualTo("😀".repeat(255));
+    }
+
+    @Test
+    void createShouldRejectTitleLongerThan255CharactersBeforeSideEffects() {
+        ArticleDTO articleDTO = article("json", "html", null);
+        articleDTO.setArticleTitle("题".repeat(256));
+
+        assertThatThrownBy(() -> commandService.save(articleDTO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("文章标题不能超过255个字符");
+
+        verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
+    }
+
+    @Test
+    void updateShouldRejectOverlongUnicodeTitleBeforeLoadingOldArticle() {
+        ArticleDTO articleDTO = article("json", "html", 8);
+        articleDTO.setArticleTitle("😀".repeat(256));
+
+        assertThatThrownBy(() -> commandService.save(articleDTO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("文章标题不能超过255个字符");
+
+        verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
+    }
+
+    @Test
+    void createShouldAllowAbstractWithExactly255UnicodeCharacters() {
+        ArticleDTO articleDTO = article("json", "html", null);
+        articleDTO.setArticleAbstract("😀".repeat(255));
+        when(fileExtractor.extract("json", "html", null)).thenReturn(Set.of());
+        doAnswer(invocation -> {
+            BlogArticle inserted = invocation.getArgument(0);
+            inserted.setId(10);
+            return 1;
+        }).when(articleMapper).insert(any(BlogArticle.class));
+
+        commandService.save(articleDTO);
+
+        ArgumentCaptor<BlogArticle> articleCaptor = ArgumentCaptor.forClass(BlogArticle.class);
+        verify(articleMapper).insert(articleCaptor.capture());
+        assertThat(articleCaptor.getValue().getArticleAbstract())
+                .isEqualTo("😀".repeat(255));
+    }
+
+    @Test
+    void createShouldRejectAbstractLongerThan255CharactersBeforeSideEffects() {
+        ArticleDTO articleDTO = article("json", "html", null);
+        articleDTO.setArticleAbstract("摘".repeat(256));
+
+        assertThatThrownBy(() -> commandService.save(articleDTO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("文章概要不能超过255个字符");
+
+        verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
+    }
+
+    @Test
+    void updateShouldRejectOverlongUnicodeAbstractBeforeLoadingOldArticle() {
+        ArticleDTO articleDTO = article("json", "html", 8);
+        articleDTO.setArticleAbstract("😀".repeat(256));
+
+        assertThatThrownBy(() -> commandService.save(articleDTO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("文章概要不能超过255个字符");
+
+        verifyNoInteractions(articleMapper, fileService, fileExtractor, eventPublisher);
     }
 
     @Test
