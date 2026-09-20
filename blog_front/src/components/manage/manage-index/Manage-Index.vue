@@ -17,7 +17,9 @@ import ArticleEditor from "@/components/manage/manage-index/Article-Editor.vue";
   margin-left: 10%;
   margin-top: 3%;
   width: 80%;
-  height: 800px;
+  // 短文章保留原有编辑空间，长文章则由内容自然撑高整张卡片。
+  min-height: 800px;
+  height: auto;
   display: flex;
   justify-content: center;
   align-items: center;

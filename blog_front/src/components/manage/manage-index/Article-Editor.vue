@@ -743,9 +743,8 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <el-scrollbar class="editor-content-scroll">
-        <EditorContent :editor="editor" />
-      </el-scrollbar>
+      <!-- 正文不再创建独立纵向滚动区，统一交给应用主滚动容器承载。 -->
+      <EditorContent class="editor-content" :editor="editor" />
     </section>
   </div>
 </template>
@@ -753,8 +752,9 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .editor {
   width: 99%;
-  height: 99%;
-  min-height: 0;
+  // 约等于原来外层卡片 99% 的高度，短文章仍保留宽敞的写作区域。
+  min-height: 792px;
+  height: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -845,11 +845,12 @@ onBeforeUnmount(() => {
 }
 
 .simple-editor {
-  min-height: 0;
-  flex: 1;
+  min-height: 529px;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  // 保持纵向可见，避免该层截断 sticky 与正文的自然高度。
+  overflow: visible;
   border: 1px solid #dcdfe6;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
@@ -857,26 +858,24 @@ onBeforeUnmount(() => {
 }
 
 .simple-editor-toolbar {
+  // 工具栏以 App.vue 的主滚动区为参照，在 80px 高的后台页眉下方吸顶。
   position: sticky;
-  top: 0;
-  z-index: 2;
+  top: 80px;
+  // 层级低于后台页眉，避免工具栏侵入或遮挡导航区域。
+  z-index: 3;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px;
   border-bottom: 1px solid #e4e7ed;
+  border-radius: 7px 7px 0 0;
   background: #f7f8fa;
   overflow-x: auto;
 }
 
-.editor-content-scroll {
-  min-height: 0;
-  flex: 1;
-}
-
-.editor-content-scroll :deep(.el-scrollbar__view) {
-  min-height: 100%;
+.editor-content {
+  flex: 1 0 auto;
 }
 
 .toolbar-group {
@@ -968,10 +967,11 @@ onBeforeUnmount(() => {
 }
 
 :deep(.simple-editor-content) {
-  min-height: 100%;
+  min-height: 480px;
   max-width: none;
   margin: 0;
   padding: 28px 34px;
+  box-sizing: border-box;
   outline: none;
 }
 
