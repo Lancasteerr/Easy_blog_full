@@ -124,8 +124,36 @@ const buildCatalog = () => {
   activeHeadingId.value = catalogItems.value[0].id;
 };
 
+const prepareArticleLinks = () => {
+  const links = articleBodyRef.value?.querySelectorAll("a[href]") || [];
+
+  links.forEach(link => {
+    const href = link.getAttribute("href")?.trim() || "";
+
+    // 空链接不处理；页内锚点继续在当前文章内定位，避免新开无意义的标签页。
+    if (!href || href.startsWith("#")) {
+      return;
+    }
+
+    link.setAttribute("target", "_blank");
+
+    // 保留编辑器写入的 nofollow 等值，同时补齐新标签页所需的安全隔离。
+    const relValues = new Set(
+      (link.getAttribute("rel") || "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(value => value.toLowerCase())
+    );
+    relValues.add("noopener");
+    relValues.add("noreferrer");
+    link.setAttribute("rel", Array.from(relValues).join(" "));
+  });
+};
+
 const refreshArticleContent = async () => {
   await nextTick();
+  // 只处理 DOMPurify 清洗后的链接，兼容没有 target 属性的历史文章。
+  prepareArticleLinks();
   highlightArticleCode(articleBodyRef.value);
   buildCatalog();
   scheduleReadingStateUpdate();

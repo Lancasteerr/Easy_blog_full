@@ -33,13 +33,10 @@ const {
   },
 });
 
-const goToArticleList = () => {
-  router.push("/articlelist");
-};
-
-const jumpto = id => {
-  router.push({ path: "/article", query: { id } });
-};
+// 通过路由解析生成真实 href，兼容站点部署在非根路径的情况。
+const articleListHref = router.resolve({ name: "ArticleList" }).href;
+const getArticleHref = id =>
+  router.resolve({ name: "ArticleDetailQuery", query: { id } }).href;
 
 onMounted(loadArticles);
 </script>
@@ -54,36 +51,38 @@ onMounted(loadArticles);
   >
     <div class="ArticleList">
       <div class="ArticleListtitle">
-        <button
-            type="button"
+        <a
             class="ArticleListTitleButton"
             aria-label="查看文章列表"
+            :href="articleListHref"
+            target="_blank"
+            rel="noopener noreferrer"
             @pointerdown.stop
-            @click="goToArticleList"
         >
           <span>文章</span>
           <span class="ArticleListStitle">ARTICLE</span>
-        </button>
+        </a>
       </div>
       <div class="ArticleListcontext">
         <div v-if="loading" class="ArticleState">加载中...</div>
         <div v-else-if="loadFailed" class="ArticleState">文章加载失败</div>
         <div v-else-if="articles.length === 0" class="ArticleState">暂无文章</div>
         <div v-else class="HotArticleList">
-          <button
+          <a
               v-for="item in articles"
               :key="item.id"
-              type="button"
               class="HotArticleItem"
+              :href="getArticleHref(item.id)"
+              target="_blank"
+              rel="noopener noreferrer"
               @pointerdown.stop
-              @click="jumpto(item.id)"
           >
             <span class="HotArticleText">
               <span class="HotArticleTitle">{{ item.articleTitle }}</span>
               <span class="HotArticleDate">{{ formatArticleDate(item.articleDate, "--") }}</span>
             </span>
             <span class="HotArticleViews">{{ formatViewCount(item.viewCount) }} 浏览</span>
-          </button>
+          </a>
         </div>
         <div v-if="totalPages > 1" class="ArticlePagination" @pointerdown.stop>
           <button
@@ -153,6 +152,7 @@ onMounted(loadArticles);
   color: #ffffff;
   font: inherit;
   font-size: 16px;
+  text-decoration: none;
   cursor: pointer;
   transition: border-color .2s ease, color .2s ease;
 }
@@ -197,6 +197,7 @@ onMounted(loadArticles);
   gap: 10px;
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   transition: background-color .2s ease, border-color .2s ease;
 }

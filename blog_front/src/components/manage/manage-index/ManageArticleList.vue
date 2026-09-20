@@ -2,7 +2,14 @@
   <div class="article-list">
     <div class="article-item" v-for="item in articles" :key="item.id">
 
-      <div class="title" @click = "jumpto(item.id)">{{ item.articleTitle }}</div>
+      <a
+        class="title"
+        :href="getArticleHref(item.id)"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {{ item.articleTitle }}
+      </a>
 
       <div class="abstract">{{ item.articleAbstract }}</div>
 
@@ -11,11 +18,14 @@
     <!-- 操作按钮区域 -->
     <div class="action-buttons">
       <el-button
+          tag="a"
           class="article-action edit-button"
           size="small"
           type="primary"
           plain
-          @click="editArticle(item.id)"
+          :href="getEditArticleHref(item.id)"
+          target="_blank"
+          rel="noopener noreferrer"
       >
         修改
       </el-button>
@@ -67,9 +77,11 @@ const {
   },
 });
 
-const jumpto = (id) =>{
-  router.push({ path: '/article', query: { id: id } })
-}
+// 统一使用路由解析后的链接，避免硬编码根路径并保留浏览器原生链接能力。
+const getArticleHref = id =>
+  router.resolve({ name: "ArticleDetailQuery", query: { id } }).href;
+const getEditArticleHref = id =>
+  router.resolve({ name: "editArticleRestful", params: { id } }).href;
 
 const handlePageChange = (newPage) => {
   changePage(newPage);
@@ -88,9 +100,6 @@ const delArticle = async (id) => {
   }
 }
 
-const editArticle = (id) =>{
-  window.open(`/neko-panel/manage/edit/${id}`,'_blank')
-}
 </script>
 
 <style scoped>
@@ -136,11 +145,13 @@ const editArticle = (id) =>{
 
 /* 标题 */
 .title {
+  display: inline-block;
   font-size: 20px;
   font-weight: bold;
   color: #ffffff;
   margin-bottom: 8px;
   cursor: pointer;
+  text-decoration: none;
   transition: color 0.2s ease;
 }
 

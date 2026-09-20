@@ -1,14 +1,13 @@
 <template>
   <div class="article-list">
-    <div
+    <a
       class="article-item"
       :class="{ reverse: index % 2 === 1 }"
       v-for="(item, index) in articles"
       :key="item.id"
-      role="button"
-      tabindex="0"
-      @click="jumpto(item.id)"
-      @keyup.enter="jumpto(item.id)"
+      :href="getArticleHref(item.id)"
+      target="_blank"
+      rel="noopener noreferrer"
     >
       <div class="article-cover">
         <img :src="getCoverUrl(item, index)" :alt="`${item.articleTitle || '文章'}封面`" />
@@ -25,7 +24,7 @@
 
         <p class="abstract">{{ item.articleAbstract || "暂无概要" }}</p>
       </div>
-    </div>
+    </a>
 
     <ArticlePagination
       :total="total"
@@ -37,17 +36,15 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted } from "vue";
+import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import fallbackCoverOne from "@/assets/ArticleCoverImg/p2382636776.webp";
 import fallbackCoverTwo from "@/assets/ArticleCoverImg/p2415896447.webp";
 import ArticlePagination from "@/components/common/ArticlePagination.vue";
 import { usePagedArticles } from "@/composables/usePagedArticles";
-import { getAppScrollTop, setAppScrollTop } from "@/utils/appScroll";
 
 const router = useRouter();
 const fallbackCovers = [fallbackCoverOne, fallbackCoverTwo];
-const ARTICLE_LIST_SCROLL_STATE_KEY = "articleListScrollState";
 
 const isNotFoundStatus = error => [400, 404].includes(error.response?.status);
 
@@ -79,51 +76,9 @@ const {
   },
 });
 
-const waitForPagePaint = async () => {
-  await nextTick();
-
-  await new Promise(resolve => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
-};
-
-const readSavedScrollState = () => {
-  const rawState = sessionStorage.getItem(ARTICLE_LIST_SCROLL_STATE_KEY);
-
-  if (!rawState) {
-    return null;
-  }
-
-  try {
-    const state = JSON.parse(rawState);
-    const savedPage = Number.parseInt(state.page, 10);
-    const savedScrollTop = Number(state.scrollTop);
-
-    return {
-      page: Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1,
-      scrollTop: Number.isFinite(savedScrollTop) ? Math.max(savedScrollTop, 0) : 0
-    };
-  } catch (error) {
-    sessionStorage.removeItem(ARTICLE_LIST_SCROLL_STATE_KEY);
-    return null;
-  }
-};
-
-const saveScrollState = () => {
-  // 点击文章前记录当前列表页和真实滚动容器位置，用于从详情页返回时恢复。
-  sessionStorage.setItem(
-    ARTICLE_LIST_SCROLL_STATE_KEY,
-    JSON.stringify({
-      page: page.value,
-      scrollTop: getAppScrollTop()
-    })
-  );
-};
-
-const jumpto = (id) =>{
-  saveScrollState();
-  router.push({ path: '/article', query: { id: id } })
-}
+// 文章详情在新标签页打开，列表页的分页和滚动位置由原页面自然保留。
+const getArticleHref = id =>
+  router.resolve({ name: "ArticleDetailQuery", query: { id } }).href;
 
 const getFallbackCoverIndex = (item, index) => {
   const numericId = Number.parseInt(item?.id, 10);
@@ -150,23 +105,7 @@ const handlePageChange = (newPage) => {
   changePage(newPage);
 };
 
-onMounted(async () => {
-  const savedScrollState = readSavedScrollState();
-
-  if (savedScrollState) {
-    page.value = savedScrollState.page;
-  }
-
-  const loaded = await loadArticles();
-
-  if (!loaded || !savedScrollState) {
-    return;
-  }
-
-  await waitForPagePaint();
-  setAppScrollTop(savedScrollState.scrollTop);
-  sessionStorage.removeItem(ARTICLE_LIST_SCROLL_STATE_KEY);
-});
+onMounted(loadArticles);
 </script>
 
 <style scoped>
@@ -193,6 +132,7 @@ onMounted(async () => {
   color: #ffffff;
   box-sizing: border-box;
   cursor: pointer;
+  text-decoration: none;
   transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
 }
 
