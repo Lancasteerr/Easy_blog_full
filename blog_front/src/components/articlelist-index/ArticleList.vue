@@ -188,7 +188,7 @@ onMounted(async () => {
   grid-template-columns: minmax(300px, 42%) 1fr;
   background: rgba(67, 72, 81, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  border-radius: 4px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
   color: #ffffff;
   box-sizing: border-box;

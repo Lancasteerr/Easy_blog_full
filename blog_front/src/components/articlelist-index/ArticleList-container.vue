@@ -17,7 +17,7 @@ import ArticleList from "@/components/articlelist-index/ArticleList.vue";
   background-color: rgba(43, 47, 54, 0.88);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  border-radius: 4px;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.24);
   box-sizing: border-box;
 }
