@@ -212,6 +212,7 @@ onMounted(async () => {
 }
 
 .article-cover {
+  position: relative;
   min-width: 0;
   min-height: 248px;
   overflow: hidden;
@@ -219,10 +220,14 @@ onMounted(async () => {
 }
 
 .article-cover img {
+  /* 脱离文档流，避免图片原始比例参与网格行高计算并撑高文章卡片。 */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
+  object-position: center;
   transition: transform 0.36s ease;
 }
 
