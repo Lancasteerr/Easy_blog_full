@@ -25,6 +25,8 @@ public class BlogArticle {
 
     private LocalDateTime articleDate;
 
+    // 浏览量由浏览刷盘任务通过原子增量维护，文章编辑更新不得生成 view_count。
+    @TableField(updateStrategy = FieldStrategy.NEVER)
     private Long viewCount;
 
     // 删除封面时必须让 updateById 将 NULL 显式写入数据库。

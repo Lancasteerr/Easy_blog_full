@@ -68,8 +68,9 @@ public class ArticleCommandService {
             articleMapper.insert(article);
             articleDTO.setId(article.getId());
         } else {
-            // 编辑文章不得覆盖已经累计的浏览量。
-            article.setViewCount(oldArticle.getViewCount());
+            // 文章编辑只更新内容字段，浏览量由刷盘任务单独负责更新。
+            // 防御性清空请求中的旧浏览量，避免它进入文章更新实体。
+            article.setViewCount(null);
             articleMapper.updateById(article);
         }
 

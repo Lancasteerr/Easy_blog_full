@@ -6,12 +6,16 @@ import com.febrie.demo_bk.article.domain.event.ArticleChangedEvent;
 import com.febrie.demo_bk.article.infrastructure.persistence.ArticleMapper;
 import com.febrie.demo_bk.article.infrastructure.persistence.BlogArticle;
 import com.febrie.demo_bk.file.application.FileService;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.lang.reflect.Field;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -71,13 +75,30 @@ class ArticleCommandServiceTest {
     }
 
     @Test
-    void updateShouldPreserveViewCountAndReleaseOnlyRemovedFiles() {
+    void updateShouldNotWriteViewCountAndReleaseOnlyRemovedFiles() {
         BlogArticle oldArticle = new BlogArticle();
         oldArticle.setId(8);
         oldArticle.setArticleContentJson("old-json");
         oldArticle.setArticleContentHtml("old-html");
         oldArticle.setViewCount(91L);
-        when(articleMapper.selectById(8)).thenReturn(oldArticle);
+        AtomicLong persistedViewCount = new AtomicLong(91L);
+        when(articleMapper.selectById(8)).thenAnswer(invocation -> {
+            // 模拟编辑读取旧值后，刷盘事务先将浏览量增加 20。
+            articleMapper.incrementViewCount(8, 20L);
+            return oldArticle;
+        });
+        doAnswer(invocation -> {
+            persistedViewCount.addAndGet(invocation.getArgument(1));
+            return 1;
+        }).when(articleMapper).incrementViewCount(8, 20L);
+        doAnswer(invocation -> {
+            BlogArticle updatedArticle = invocation.getArgument(0);
+            // 用简单内存状态模拟 updateById 对非空 viewCount 的潜在覆盖行为。
+            if (updatedArticle.getViewCount() != null) {
+                persistedViewCount.set(updatedArticle.getViewCount());
+            }
+            return 1;
+        }).when(articleMapper).updateById(any(BlogArticle.class));
         when(fileExtractor.extract("old-json", "old-html", null))
                 .thenReturn(Set.of(1L, 2L));
         when(fileExtractor.extract("new-json", "new-html", null))
@@ -90,13 +111,26 @@ class ArticleCommandServiceTest {
 
         ArgumentCaptor<BlogArticle> articleCaptor = ArgumentCaptor.forClass(BlogArticle.class);
         verify(articleMapper).updateById(articleCaptor.capture());
-        assertThat(articleCaptor.getValue().getViewCount()).isEqualTo(91L);
+        // 更新实体不再携带旧浏览量，避免把读取快照写回数据库。
+        assertThat(articleCaptor.getValue().getViewCount()).isNull();
+        assertThat(persistedViewCount).hasValue(111L);
+        verify(articleMapper).incrementViewCount(8, 20L);
         verify(fileService).markBound(Set.of(2L, 3L));
         verify(fileService).markTemp(Set.of(1L));
 
         ArticleChangedEvent event = captureEvent();
         assertThat(event.changeType()).isEqualTo(ArticleChangedEvent.ChangeType.UPDATED);
         assertThat(event.releasedFileIds()).containsExactly(1L);
+    }
+
+    @Test
+    void viewCountShouldNeverParticipateInMybatisPlusUpdates() throws NoSuchFieldException {
+        Field viewCountField = BlogArticle.class.getDeclaredField("viewCount");
+        TableField tableField = viewCountField.getAnnotation(TableField.class);
+
+        assertThat(tableField).isNotNull();
+        // 用实体元数据锁定浏览量字段的单一写入职责，防止后续误用 updateById。
+        assertThat(tableField.updateStrategy()).isEqualTo(FieldStrategy.NEVER);
     }
 
     @Test
