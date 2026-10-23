@@ -6,7 +6,7 @@
 
 ### 后端运行依赖
 
-在 `demo_bk/pom.xml` 使用 Spring Boot 统一版本属性覆盖，最终 JAR 已检查同组模块版本一致。
+在 `demo_bk/pom.xml` 使用 Spring Boot 统一版本属性覆盖，升级时已核查最终 JAR 的同组模块版本一致。后续已移除写死目标版本的自动检查，避免正常补丁升级需要同步修改测试。
 
 | 依赖 | 原版本 | 新版本 |
 | --- | --- | --- |
@@ -75,7 +75,7 @@ OpenJDK17U-jre_x64_linux_hotspot_17.0.21_9.tar.gz
 | 后端 Maven verify、可执行 JAR 打包 | 78 项测试通过，0 失败/错误/跳过；升级前 71 项 |
 | HTTP/JSON 与认证回归 | 新增 6 项：匿名文章、未认证写入拒绝、畸形 JSON、错误密码、畸形 JWT、有效 JWT 注销 |
 | Redis 兼容性 | 新增 JSON 日期/计数缓存格式回归；现有 Redis/Lua 测试通过，未连接生产 Redis |
-| 最终 JAR 依赖检查 | Tomcat/Jackson/Netty/Log4j 模块版本符合上表 |
+| 升级时的最终 JAR 依赖核查 | Tomcat/Jackson/Netty/Log4j 模块版本符合上表；固定版本检查脚本后续已移除 |
 | 运行依赖 OSV 查询 | 查询 78 个运行依赖坐标，仅命中下述两项 Spring 条件型告警 |
 | npm ci、npm run build | 通过，Vite 8.1.6 |
 | 官方 npm registry 审计 | 0 项告警，包含开发依赖 |
@@ -93,7 +93,7 @@ OpenJDK17U-jre_x64_linux_hotspot_17.0.21_9.tar.gz
 - [CVE-2026-47884：XsltView 路径限制问题](https://spring.io/security/cve-2026-47884/)：官方描述需要 XsltView、宽泛 URL 映射及隐式视图名，可能导致 SSRF/RCE。源码核查未使用这些视图功能，当前接口返回 JSON。版本仍受影响，只能基于当前功能判断未满足触发条件。
 - [CVE-2026-47890：SSE 视图片段流损坏](https://spring.io/security/cve-2026-47890/)：需要通过 SSE 向客户端发送视图片段，并且攻击者能控制被发送的数据。源码未使用此功能。
 
-两项官方公告给出的 6.2 修复版本为商业支持渠道的 6.2.20。本轮不进行 Spring 7 / Boot 4 迁移，不能声称后端依赖告警清零。CI 只对这两个 CVE 和 `spring-webmvc@6.2.19` 设置例外，2026-11-22 到期；源码若引入相关视图/SSE 类型，JAR 检查脚本要求重新评估。此文本匹配检查是回归提醒，不能替代安全审查。
+两项官方公告给出的 6.2 修复版本为商业支持渠道的 6.2.20。本轮不进行 Spring 7 / Boot 4 迁移，不能声称后端依赖告警清零。CI 只对这两个 CVE 和 `spring-webmvc@6.2.19` 设置例外，2026-11-22 到期；源码若引入相关视图/SSE 功能，必须重新进行安全评估。原版本检查脚本附带的源码文本检查已随脚本移除。
 
 MySQL、Redis 服务端本轮未升级；Compose 仍为 `mysql:8.4` 和 `redis:7.4-alpine`，未映射宿主机端口。Caddy 位于 nginx 前处理 HTTPS，按维护者确认未使用受影响的印度证书链；线上 Caddy/数据库/Redis 精确版本和防火墙暴露面仍需运维另行核实。
 

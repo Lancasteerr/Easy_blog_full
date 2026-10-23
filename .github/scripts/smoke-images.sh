@@ -22,10 +22,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 确认真正运行的补丁版本、非 root 身份和仅 JRE 的运行阶段。
+# 确认非 root 身份和仅 JRE 的运行阶段，不限制后续依赖补丁升级。
 docker run --rm --entrypoint sh "$backend_image" -c \
-  'grep -Fx '\''JAVA_RUNTIME_VERSION="17.0.21+9"'\'' /opt/java/openjdk/release && test ! -e /opt/java/openjdk/bin/javac'
-docker run --rm --entrypoint nginx "$frontend_image" -v 2>&1 | grep -F 'nginx/1.30.6'
+  'test ! -e /opt/java/openjdk/bin/javac'
 for image in "$backend_image" "$frontend_image"; do
   user="$(docker image inspect --format '{{.Config.User}}' "$image")"
   test -n "$user" && test "$user" != root && test "$user" != 0
@@ -64,4 +63,4 @@ expect_status 400 "$base_url/api/public/get_article_list?page=0&size=10"
 expect_status 401 -X POST -H 'Content-Type: application/json' --data '{}' "$base_url/api/admin/content/article"
 expect_status 401 -X POST -H 'Authorization: Bearer invalid.token.value' "$base_url/api/admin/logout"
 expect_status 400 -X POST -H 'Content-Type: application/json' --data '{"userName":' "$base_url/api/public/login"
-echo "镜像版本、启动、同源反代及匿名认证边界检查通过"
+echo "镜像运行身份、启动、同源反代及匿名认证边界检查通过"

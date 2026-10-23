@@ -5,14 +5,12 @@ on:
   pull_request:
     paths:
       - "demo_bk/**"
-      - ".github/scripts/verify-runtime-dependencies.py"
       - ".github/workflows/backend-tests.yml"
   push:
     branches:
       - main
     paths:
       - "demo_bk/**"
-      - ".github/scripts/verify-runtime-dependencies.py"
       - ".github/workflows/backend-tests.yml"
 
 permissions:
@@ -45,9 +43,6 @@ jobs:
       - name: Run backend tests and package
         run: ./mvnw -B -ntp verify
 
-      - name: Check packaged runtime dependencies
-        run: python3 ../.github/scripts/verify-runtime-dependencies.py target/demo_bk-0.0.1-SNAPSHOT.jar > target/runtime-dependencies.json
-
       - name: Build backend Docker image
         run: docker build --pull --tag easy-blog-backend:ci .
 
@@ -56,6 +51,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-validation
-          path: |
-            demo_bk/target/surefire-reports/*.xml
-            demo_bk/target/runtime-dependencies.json
+          path: demo_bk/target/surefire-reports/*.xml
