@@ -1,5 +1,13 @@
 # 多阶段构建：编译阶段需要完整 JDK 和 Maven，运行阶段只保留 JRE。
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3.9.16-eclipse-temurin-17@sha256:1a352420f7aba21f5ad08df31bab55f74c013fb491f1ae8ab1dd7ff9ed698584 AS build
+
+# 固定镜像中的 Maven，并使用校验后的官方包完整替换旧 JDK，避免浮动标签漏掉安全补丁。
+COPY docker/prepare-temurin.sh /tmp/prepare-temurin.sh
+RUN sh /tmp/prepare-temurin.sh jdk /opt/java/patched-jdk \
+    && sh /tmp/prepare-temurin.sh jre /opt/java/patched-jre \
+    && rm -rf /opt/java/openjdk \
+    && mv /opt/java/patched-jdk /opt/java/openjdk \
+    && java -version
 
 WORKDIR /build
 
@@ -13,7 +21,13 @@ RUN mvn -q -DskipTests dependency:go-offline
 COPY src ./src
 RUN mvn -q -DskipTests package
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jre@sha256:e04fa72be13b257a59fdec6dc14af78c8f80f035d3c1ed4e03e45552a231d4c8
+
+# 运行镜像保留原发行版和证书入口脚本，完整替换 Java 目录，最终仅携带 JRE。
+RUN rm -rf /opt/java/openjdk
+COPY --from=build /opt/java/patched-jre /opt/java/openjdk
+RUN grep -Fx 'JAVA_RUNTIME_VERSION="17.0.21+9"' /opt/java/openjdk/release \
+    && java -version
 
 WORKDIR /app
 

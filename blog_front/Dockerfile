@@ -11,7 +11,8 @@ COPY . .
 RUN npm run build
 
 # 运行阶段只保留 nginx 与静态产物，避免把源码和 node_modules 带到生产镜像。
-FROM nginxinc/nginx-unprivileged:stable-alpine AS runtime
+# 固定 nginx 安全补丁和镜像摘要，避免 stable 标签漂移或复用旧基础镜像。
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03 AS runtime
 
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
