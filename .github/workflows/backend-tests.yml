@@ -6,19 +6,16 @@ on:
     paths:
       - "demo_bk/**"
       - ".github/workflows/backend-tests.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "demo_bk/**"
-      - ".github/workflows/backend-tests.yml"
+      # 文档不影响编译；main 由发布流程统一调用，避免重复测试。
+      - "!**/*.md"
+      - "!demo_bk/docs/**"
 
 permissions:
   contents: read
 
 jobs:
   test:
-    name: Maven test and Docker build
+    name: Maven verify
     runs-on: ubuntu-latest
 
     defaults:
@@ -42,9 +39,6 @@ jobs:
 
       - name: Run backend tests and package
         run: ./mvnw -B -ntp verify
-
-      - name: Build backend Docker image
-        run: docker build --pull --tag easy-blog-backend:ci .
 
       - name: Preserve backend validation reports
         if: always()

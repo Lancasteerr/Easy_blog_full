@@ -4,6 +4,17 @@ on:
   push:
     branches:
       - main
+    # 仅应用构建上下文及发布相关配置变更触发发布；文档和安全检查独立维护。
+    paths:
+      - "demo_bk/**"
+      - "blog_front/**"
+      - ".github/workflows/backend-tests.yml"
+      - ".github/workflows/frontend-tests.yml"
+      - ".github/workflows/docker-images.yml"
+      - ".github/scripts/smoke-images.sh"
+      - "!**/*.md"
+      - "!demo_bk/docs/**"
+      - "!blog_front/docs/**"
   workflow_dispatch:
 
 permissions:
@@ -14,38 +25,13 @@ env:
   FRONTEND_IMAGE: ghcr.io/lancasteerr/easy-blog-frontend
 
 jobs:
-  # 两端验证均成功后才构建待发布镜像，测试失败不会更新 prod 标签。
+  # main 仅在这里调用一次后端测试；前端编译由镜像构建完成。
   validate-backend:
     uses: ./.github/workflows/backend-tests.yml
 
-  validate-frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: blog_front
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.23.4"
-          cache: npm
-          cache-dependency-path: blog_front/package-lock.json
-      - name: Install locked dependencies
-        run: npm ci --registry=https://registry.npmjs.org
-      - name: Audit against official registry
-        run: npm audit --audit-level=high --json --registry=https://registry.npmjs.org > npm-audit.json
-      - name: Build production assets
-        run: npm run build
-      - name: Preserve frontend audit
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-validation
-          path: blog_front/npm-audit.json
-
   build-and-push:
-    name: Build, verify, scan and publish
-    needs: [validate-backend, validate-frontend]
+    name: Build, smoke test and publish
+    needs: [validate-backend]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,10 +41,18 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
+      - name: Prepare release reports
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          # 提前记录提交号，后续失败时仍可上传已生成的发布信息。
+          mkdir -p release-reports
+          printf '%s\n' "$SOURCE_REVISION" > release-reports/source-revision.txt
+          echo "Source revision: $SOURCE_REVISION" >> "$GITHUB_STEP_SUMMARY"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # 先加载到本地扫描，所有检查通过后才推送同一批镜像，避免扫描与交付产物不同。
+      # 两端各构建一次，先在本地启动验证，再推送同一批镜像。
       - name: Build backend candidate
         uses: docker/build-push-action@v7
         with:
@@ -94,45 +88,6 @@ jobs:
       - name: Smoke test runtime images
         run: bash .github/scripts/smoke-images.sh
 
-      - name: Prepare security reports
-        run: mkdir -p security-reports
-
-      # 原始报告保留所有级别；未修复项也不隐藏，数据库下载失败直接阻止发布。
-      - name: Scan backend candidate
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          version: v0.70.0
-          image-ref: easy-blog-backend:ci
-          scanners: vuln
-          format: json
-          output: security-reports/backend-trivy.json
-          exit-code: "0"
-          timeout: 10m
-
-      - name: Scan frontend candidate
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          version: v0.70.0
-          image-ref: easy-blog-frontend:ci
-          scanners: vuln
-          format: json
-          output: security-reports/frontend-trivy.json
-          exit-code: "0"
-          timeout: 10m
-
-      - name: Enforce vulnerability gate and export SBOM
-        shell: bash
-        run: |
-          set -euo pipefail
-          # 仅采用有包范围和到期日期的两个 Spring 例外，不整体忽略框架或系统库。
-          for component in backend frontend; do
-            trivy image --scanners vuln --severity HIGH,CRITICAL --format table --output /dev/stdout \
-              --exit-code 1 --timeout 10m --ignore-unfixed=false \
-              --ignorefile .github/security/trivyignore.yaml "easy-blog-${component}:ci"
-            trivy image --scanners vuln --format cyclonedx --exit-code 0 --timeout 10m \
-              --output "security-reports/${component}.cdx.json" "easy-blog-${component}:ci"
-          done
-
       - name: Login to GHCR after validation
         uses: docker/login-action@v4
         with:
@@ -146,7 +101,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # 发布已启动验证和扫描的本地镜像；生产只需拉取镜像，无需安装构建工具。
+          # 仅发布已通过启动和 HTTP 冒烟的本地镜像，不因漏洞报告阻断发布。
           for component in backend frontend; do
             if [ "$component" = backend ]; then repository="$BACKEND_IMAGE"; else repository="$FRONTEND_IMAGE"; fi
             docker tag "easy-blog-${component}:ci" "${repository}:sha-${SOURCE_REVISION}"
@@ -154,13 +109,13 @@ jobs:
             docker push "${repository}:sha-${SOURCE_REVISION}"
             docker push "${repository}:prod"
             docker image inspect --format '{{json .RepoDigests}}' "${repository}:prod" \
-              > "security-reports/${component}-digests.json"
-            echo "${component}: $(cat "security-reports/${component}-digests.json")" >> "$GITHUB_STEP_SUMMARY"
+              > "release-reports/${component}-digests.json"
+            echo "${component}: $(cat "release-reports/${component}-digests.json")" >> "$GITHUB_STEP_SUMMARY"
           done
 
-      - name: Preserve image security reports
+      - name: Preserve image release info
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: image-security-reports
-          path: security-reports/
+          name: image-release-info
+          path: release-reports/

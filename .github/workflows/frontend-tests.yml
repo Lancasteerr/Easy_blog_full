@@ -1,0 +1,31 @@
+name: Frontend Build
+
+on:
+  pull_request:
+    paths:
+      - "blog_front/**"
+      - ".github/workflows/frontend-tests.yml"
+      # 合并前验证源码构建，发布时仅在 Docker 内执行同一套构建命令。
+      - "!**/*.md"
+      - "!blog_front/docs/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: blog_front
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+          cache: npm
+          cache-dependency-path: blog_front/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --registry=https://registry.npmjs.org
+      - name: Build production assets
+        run: npm run build
