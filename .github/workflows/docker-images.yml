@@ -8,62 +8,159 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   BACKEND_IMAGE: ghcr.io/lancasteerr/easy-blog-backend
   FRONTEND_IMAGE: ghcr.io/lancasteerr/easy-blog-frontend
 
 jobs:
-  build-and-push:
-    name: Build and push backend/frontend images
+  # 两端验证均成功后才构建待发布镜像，测试失败不会更新 prod 标签。
+  validate-backend:
+    uses: ./.github/workflows/backend-tests.yml
+
+  validate-frontend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: blog_front
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+          cache: npm
+          cache-dependency-path: blog_front/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --registry=https://registry.npmjs.org
+      - name: Audit against official registry
+        run: npm audit --audit-level=high --json --registry=https://registry.npmjs.org > npm-audit.json
+      - name: Build production assets
+        run: npm run build
+      - name: Preserve frontend audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-validation
+          path: blog_front/npm-audit.json
+
+  build-and-push:
+    name: Build, verify, scan and publish
+    needs: [validate-backend, validate-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     concurrency:
       group: docker-images-${{ github.ref }}
       cancel-in-progress: true
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
-      - name: Login to GHCR
+      # 先加载到本地扫描，所有检查通过后才推送同一批镜像，避免扫描与交付产物不同。
+      - name: Build backend candidate
+        uses: docker/build-push-action@v7
+        with:
+          context: ./demo_bk
+          file: ./demo_bk/Dockerfile
+          platforms: linux/amd64
+          pull: true
+          load: true
+          provenance: false
+          tags: easy-blog-backend:ci
+          labels: |
+            org.opencontainers.image.source=https://github.com/Lancasteerr/Easy_blog_full
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build frontend candidate
+        uses: docker/build-push-action@v7
+        with:
+          context: ./blog_front
+          file: ./blog_front/Dockerfile
+          platforms: linux/amd64
+          pull: true
+          load: true
+          provenance: false
+          tags: easy-blog-frontend:ci
+          labels: |
+            org.opencontainers.image.source=https://github.com/Lancasteerr/Easy_blog_full
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Smoke test runtime images
+        run: bash .github/scripts/smoke-images.sh
+
+      - name: Prepare security reports
+        run: mkdir -p security-reports
+
+      # 原始报告保留所有级别；未修复项也不隐藏，数据库下载失败直接阻止发布。
+      - name: Scan backend candidate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          image-ref: easy-blog-backend:ci
+          scanners: vuln
+          format: json
+          output: security-reports/backend-trivy.json
+          exit-code: "0"
+          timeout: 10m
+
+      - name: Scan frontend candidate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          image-ref: easy-blog-frontend:ci
+          scanners: vuln
+          format: json
+          output: security-reports/frontend-trivy.json
+          exit-code: "0"
+          timeout: 10m
+
+      - name: Enforce vulnerability gate and export SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 仅采用有包范围和到期日期的两个 Spring 例外，不整体忽略框架或系统库。
+          for component in backend frontend; do
+            trivy image --scanners vuln --severity HIGH,CRITICAL --format table --output /dev/stdout \
+              --exit-code 1 --timeout 10m --ignore-unfixed=false \
+              --ignorefile .github/security/trivyignore.yaml "easy-blog-${component}:ci"
+            trivy image --scanners vuln --format cyclonedx --exit-code 0 --timeout 10m \
+              --output "security-reports/${component}.cdx.json" "easy-blog-${component}:ci"
+          done
+
+      - name: Login to GHCR after validation
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+      - name: Publish verified candidates
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 发布已启动验证和扫描的本地镜像；生产只需拉取镜像，无需安装构建工具。
+          for component in backend frontend; do
+            if [ "$component" = backend ]; then repository="$BACKEND_IMAGE"; else repository="$FRONTEND_IMAGE"; fi
+            docker tag "easy-blog-${component}:ci" "${repository}:sha-${SOURCE_REVISION}"
+            docker tag "easy-blog-${component}:ci" "${repository}:prod"
+            docker push "${repository}:sha-${SOURCE_REVISION}"
+            docker push "${repository}:prod"
+            docker image inspect --format '{{json .RepoDigests}}' "${repository}:prod" \
+              > "security-reports/${component}-digests.json"
+            echo "${component}: $(cat "security-reports/${component}-digests.json")" >> "$GITHUB_STEP_SUMMARY"
+          done
 
-      - name: Build and push backend image
-        uses: docker/build-push-action@v7
+      - name: Preserve image security reports
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          context: ./demo_bk
-          file: ./demo_bk/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.BACKEND_IMAGE }}:prod
-            ${{ env.BACKEND_IMAGE }}:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/Lancasteerr/Easy_blog_full
-            org.opencontainers.image.description=Easy Blog Spring Boot backend
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./blog_front
-          file: ./blog_front/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.FRONTEND_IMAGE }}:prod
-            ${{ env.FRONTEND_IMAGE }}:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/Lancasteerr/Easy_blog_full
-            org.opencontainers.image.description=Easy Blog Vue frontend
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
+          name: image-security-reports
+          path: security-reports/

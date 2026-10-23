@@ -9,6 +9,9 @@ RUN sh /tmp/prepare-temurin.sh jdk /opt/java/patched-jdk \
     && mv /opt/java/patched-jdk /opt/java/openjdk \
     && java -version
 
+# 同步基础镜像遗留的版本元数据，实际二进制仍由 release 文件和启动检查验证。
+ENV JAVA_VERSION=jdk-17.0.21+9
+
 WORKDIR /build
 
 # 使用 Maven 镜像源，避免 Docker 构建时直连 Maven Central 超时或 TLS 握手失败。
@@ -28,6 +31,7 @@ RUN rm -rf /opt/java/openjdk
 COPY --from=build /opt/java/patched-jre /opt/java/openjdk
 RUN grep -Fx 'JAVA_RUNTIME_VERSION="17.0.21+9"' /opt/java/openjdk/release \
     && java -version
+ENV JAVA_VERSION=jdk-17.0.21+9
 
 WORKDIR /app
 

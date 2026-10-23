@@ -240,5 +240,6 @@ flowchart LR
 
 ## 相关文档
 
+- [2026-10-23 依赖安全补丁、验证及回滚说明](docs/dependency-upgrade-2026-10-23.md)
 - [前端说明](blog_front/README.md)
 - [后端说明](demo_bk/README.md)

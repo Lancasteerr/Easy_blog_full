@@ -1,15 +1,18 @@
 name: Backend Tests
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - "demo_bk/**"
+      - ".github/scripts/verify-runtime-dependencies.py"
       - ".github/workflows/backend-tests.yml"
   push:
     branches:
       - main
     paths:
       - "demo_bk/**"
+      - ".github/scripts/verify-runtime-dependencies.py"
       - ".github/workflows/backend-tests.yml"
 
 permissions:
@@ -28,18 +31,31 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      # CI 与容器使用同一个安全补丁，避免本机旧 Java 的通过结果掩盖运行差异。
+      - name: Set up patched Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "17.0.21+9"
           cache: maven
 
       - name: Make Maven wrapper executable
         run: chmod +x mvnw
 
-      - name: Run backend tests
-        run: ./mvnw -B test
+      - name: Run backend tests and package
+        run: ./mvnw -B -ntp verify
+
+      - name: Check packaged runtime dependencies
+        run: python3 ../.github/scripts/verify-runtime-dependencies.py target/demo_bk-0.0.1-SNAPSHOT.jar > target/runtime-dependencies.json
 
       - name: Build backend Docker image
-        run: docker build --tag easy-blog-backend:ci .
+        run: docker build --pull --tag easy-blog-backend:ci .
+
+      - name: Preserve backend validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-validation
+          path: |
+            demo_bk/target/surefire-reports/*.xml
+            demo_bk/target/runtime-dependencies.json
