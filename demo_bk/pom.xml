@@ -31,6 +31,9 @@
         <!-- 保留 Boot 3.5 的接口，通过统一版本属性修补 HTTP 容器和 JSON 解析依赖。 -->
         <tomcat.version>10.1.61</tomcat.version>
         <jackson-bom.version>2.21.7</jackson-bom.version>
+        <!-- Redis 客户端的 Netty 及日志桥接按整组更新，避免传递依赖版本不一致。 -->
+        <netty.version>4.1.137.Final</netty.version>
+        <log4j2.version>2.25.5</log4j2.version>
     </properties>
     <dependencies>
         <dependency>
