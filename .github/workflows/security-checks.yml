@@ -1,0 +1,117 @@
+name: Security Checks
+
+on:
+  schedule:
+    # 每周一新加坡时间 10:00；与发布流程独立，不决定镜像能否发布。
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: Scan ${{ matrix.component }} prod image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      # 单个镜像拉取或扫描失败，不取消另一个镜像的检查。
+      fail-fast: false
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # 即使手动选择其他 ref，也固定使用默认分支的检查逻辑。
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Prepare image reports
+        env:
+          IMAGE_TAG: ghcr.io/lancasteerr/easy-blog-${{ matrix.component }}:prod
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          mkdir -p security-reports
+          printf '%s\n' "$IMAGE_TAG" > "security-reports/${COMPONENT}-image.txt"
+      - name: Login to GHCR for read-only inspection
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve published image digest
+        id: published
+        env:
+          IMAGE_TAG: ghcr.io/lancasteerr/easy-blog-${{ matrix.component }}:prod
+          COMPONENT: ${{ matrix.component }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE_TAG"
+          # 固定本次实际拉取的摘要，避免 prod 在检查期间变化导致报告错配。
+          image_ref="$(docker image inspect --format '{{index .RepoDigests 0}}' "$IMAGE_TAG")"
+          [[ "$image_ref" == *@sha256:* ]]
+          printf '%s\n' "$image_ref" >> "security-reports/${COMPONENT}-image.txt"
+          printf 'image_ref=%s\n' "$image_ref" >> "$GITHUB_OUTPUT"
+      - name: Scan published image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          image-ref: ${{ steps.published.outputs.image_ref }}
+          scanners: vuln
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          format: json
+          output: security-reports/${{ matrix.component }}-trivy.json
+          # 漏洞不导致失败；扫描器执行错误仍正常返回失败，不使用 continue-on-error。
+          exit-code: "0"
+          timeout: 10m
+      - name: Summarize image vulnerabilities
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          python3 .github/scripts/summarize-security.py trivy \
+            "security-reports/${COMPONENT}-trivy.json" "security-reports/${COMPONENT}-image.txt"
+      - name: Preserve image reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-${{ matrix.component }}
+          path: security-reports/
+          retention-days: 30
+
+  npm:
+    name: Audit default-branch npm dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+      - name: Audit locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p security-reports
+          # 记录实际检出的提交，不能用手动选择 ref 对应的 github.sha 代替。
+          git rev-parse HEAD > security-reports/npm-source-revision.txt
+          audit_status=0
+          # 直接审计锁文件，不安装依赖、不执行生命周期脚本或前端构建。
+          npm --prefix blog_front audit --package-lock-only --ignore-scripts --audit-level=info \
+            --json --registry=https://registry.npmjs.org \
+            > security-reports/npm-audit.json || audit_status=$?
+          printf '%s\n' "$audit_status" > security-reports/npm-audit-exit-code.txt
+          # 只有有效的漏洞报告才允许非零审计状态；网络错误和损坏报告必须失败。
+          python3 .github/scripts/summarize-security.py npm \
+            security-reports/npm-audit.json security-reports/npm-source-revision.txt \
+            --status-file security-reports/npm-audit-exit-code.txt
+      - name: Preserve npm reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-npm
+          path: security-reports/
+          retention-days: 30
