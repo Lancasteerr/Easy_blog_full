@@ -133,6 +133,8 @@ http://127.0.0.1:8080/
 
 生产部署配置位于 `demo_bk/docker-compose.prod.pull.yml`，默认拉取 GitHub Actions 构建并推送到 GHCR 的前后端镜像。
 
+CI 在后端测试、镜像构建和启动冒烟通过后发布镜像；漏洞检查每周独立运行并支持手动检查，不阻断发布。触发条件、报告位置和手动运行方式见 [CI 验证与镜像发布说明](docs/ci.md)。
+
 ```bash
 cd demo_bk
 cp .env.prod.example .env.prod
@@ -153,7 +155,10 @@ docker compose --env-file .env.prod -f docker-compose.prod.pull.yml up -d
 ```text
 Easy_blog_full
 ├─ .github/workflows
-│  └─ docker-images.yml          # 构建并推送前后端 Docker 镜像
+│  ├─ backend-tests.yml          # 后端 PR 验证与发布前测试
+│  ├─ frontend-tests.yml         # 前端 PR 构建验证
+│  ├─ docker-images.yml          # 构建、冒烟并推送前后端镜像
+│  └─ security-checks.yml        # 独立的定期与手动安全检查
 ├─ blog_front                    # Vue 3 + Vite 前端
 │  ├─ src
 │  │  ├─ api                     # 前端接口封装
@@ -240,6 +245,6 @@ flowchart LR
 
 ## 相关文档
 
-- [2026-10-23 依赖安全补丁、验证及回滚说明](docs/dependency-upgrade-2026-10-23.md)
+- [CI 验证、镜像发布与安全检查](docs/ci.md)
 - [前端说明](blog_front/README.md)
 - [后端说明](demo_bk/README.md)
